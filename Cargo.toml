@@ -1,0 +1,20 @@
+[package]
+name = "rust_example"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+lto = true          # Enable link-time optimization
+strip = true        # Strip symbols from binary*
+
+[dependencies]
+env_logger = {version = "0.10.1", features = ["auto-color", "color"]}
+log = "0.4.20"
+pest = "2.7.5"
+pest_derive = {version = "2.7.5", features = ["grammar-extras"]}
+petgraph = "0.6.4"
+rand = "0.8.5"
+rand_distr = "0.4.3"
+

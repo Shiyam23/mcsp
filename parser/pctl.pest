@@ -1,0 +1,39 @@
+// Basic characters
+WHITESPACE = _{" "|"\t"|NEWLINE}
+int = {ASCII_DIGIT+}
+float = {ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+}
+lb = _{"("}
+rb = _{")"}
+lc = _{"{"}
+rc = _{"}"}
+separator = _{","}
+eq = _{"="}
+ap = @{ASCII_ALPHA+}
+comp = {"<=" | "<" | ">=" | ">"}
+
+// pctl related elements
+phi_id = {"phi"}
+Phi_id = {"Phi"}
+true = {"tt"}
+and_op = _{"AND"}
+not_op = _{"NOT "}
+prob = {"P" ~ lb ~ phi ~ separator ~ comp ~ float ~ rb}
+
+// Elements specifically for model checking
+marking = {lb ~ (int ~ separator)* ~ int ~ rb}
+markings = {lc ~ (marking ~ separator)* ~ marking ~ rc}
+ap_assign = {lb ~ ap ~ separator ~ markings ~ rb}
+L_items = _{lc ~ (ap_assign ~ separator)* ~ ap_assign ~ rc}
+L = {"L" ~ eq ~ L_items}
+AP = {"AP" ~ eq ~ lc ~ (ap ~ separator)* ~ ap ~ rc}
+
+// Expressions
+Phi_and = {and_op ~ lb ~ Phi ~ separator ~ Phi ~ rb}
+Phi_not = {not_op ~ Phi}
+phi_next = {"NEXT " ~ Phi}
+phi_until = {Phi ~ "UNTIL" ~ Phi}
+Phi = _{true | prob | Phi_and | Phi_not | "(" ~ Phi ~ ")" | ap}
+phi = _{ phi_next | phi_until | "(" ~ phi ~ ")"}
+
+// Main
+Main = _{SOI ~ AP ~ L ~ Phi ~ EOI}
