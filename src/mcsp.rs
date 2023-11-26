@@ -29,18 +29,18 @@ impl ModelCheckInfo {
         let initial_marking: Marking = p_info.initial_marking.to_owned();
         let pnet: PetriNet = PetriNet::from_info(&p_info);
         drop(p_info);
-        info!("Succesfully parsed petri net!");
+        info!("Successfully parsed petri net!");
 
         // Parsing modelcheck info
         info!("Parsing Modelcheck Info ...");
         let mut mc_info = mc_parser::parse(mc_file);
-        info!("Succesfully parsed Modelcheck Info");
+        info!("Successfully parsed Model-check Info");
 
         // Reachability Graph
         info!("Creating reachability graph for given petri net ...");
         let reach_graph = pnet.get_reach_graph();
         //println!("{:?}", dot::Dot::new(&reach_graph));
-        info!("Succesfully created reachability graph");
+        info!("Successfully created reachability graph");
 
         let new_ap_map = Self::map_marking_to_node_indices(&reach_graph, &mc_info.ap_map);
 
