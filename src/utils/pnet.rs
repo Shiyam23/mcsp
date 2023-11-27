@@ -42,7 +42,7 @@ pub struct PetriNet {
     pub transitions: Vec<Transition>,
 }
 
-use crate::utils::pnet_parser::PetriNetInfo;
+use crate::parser::parser::PetriNetInfo;
 use petgraph::{algo::dijkstra, graph::NodeIndex, prelude::DiGraph};
 use std::{
     collections::VecDeque,

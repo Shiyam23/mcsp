@@ -1,10 +1,13 @@
 use pest::Parser;
 use pest_derive::Parser;
 use std::{collections::HashMap, str::FromStr};
+use pest::iterators::Pair;
 
 use crate::utils::file::read_file;
+use crate::parser::mc_parser;
+use crate::parser::mc_parser::StatePhi;
 
-// All identifiers for the input petri net file
+// All identifiers for the input petri net
 const PLACE_ID: &str = "P";
 const TRANSITIONS_ID: &str = "T";
 const INPUT_ARCS_ID: &str = "I";
@@ -12,10 +15,32 @@ const OUTPUT_ARCS_ID: &str = "O";
 const INITIAL_MARKINGS_ID: &str = "M";
 const LAMBDAS_ID: &str = "L";
 
+// All identifiers for the input model checking settings
+const AP_MAP_ID: &str = "AP_MAP";
+const PHI_ID: &str = "PHI";
+
+const PETRI_TAGS: [&str; 6] = [
+    PLACE_ID,
+    TRANSITIONS_ID,
+    INPUT_ARCS_ID,
+    OUTPUT_ARCS_ID,
+    INITIAL_MARKINGS_ID,
+    LAMBDAS_ID
+];
+
+type Marking = Vec<usize>;
+type Markings = Vec<Marking>;
+type ApMap = HashMap<String, Markings>;
+
 #[derive(Parser)]
 #[grammar = "parser/petri_net.pest"]
 struct PetriNetParser;
 
+pub struct InputData {
+    pub petri_net: PetriNetInfo,
+    pub ap_map: ApMap,
+    pub phi: Box<dyn StatePhi>
+}
 #[derive(Default, Debug)]
 pub struct PetriNetInfo {
     pub places: Vec<String>,
@@ -35,22 +60,14 @@ where
     error: T::Err,
 }
 
-pub fn parse(file_path: &str) -> PetriNetInfo {
+pub fn parse(file_path: &str) -> InputData {
     let content = read_file(file_path);
-    let petri_net = PetriNetParser::parse(Rule::parser, &content).expect("not okay");
+    let petri_net = PetriNetParser::parse(Rule::Main, &content).unwrap();
 
     // Get all petri net tuples and elements
     let mut petri_elements: HashMap<String, Vec<String>> = HashMap::new();
     let mut petri_pairs: HashMap<String, Vec<(String, String)>> = HashMap::new();
-    let petri_tags = [
-        PLACE_ID,
-        TRANSITIONS_ID,
-        INITIAL_MARKINGS_ID,
-        LAMBDAS_ID,
-        INPUT_ARCS_ID,
-        OUTPUT_ARCS_ID,
-    ];
-    for petri_tag in petri_tags {
+    for petri_tag in PETRI_TAGS {
         let tag_string = match petri_net.find_first_tagged(petri_tag) {
             Some(tag_string) => tag_string,
             None => panic!(),
@@ -76,7 +93,18 @@ pub fn parse(file_path: &str) -> PetriNetInfo {
     }
     let petri_net_info: PetriNetInfo = initialize(petri_elements, petri_pairs);
     validate(&petri_net_info);
-    petri_net_info
+
+    let ap_map_rule: Pair<Rule> = petri_net.find_first_tagged(AP_MAP_ID).unwrap();
+    let ap_map: ApMap = mc_parser::transform_ap_map(&ap_map_rule);
+
+    let phi_rule: Pair<Rule> = petri_net.find_first_tagged(PHI_ID).unwrap();
+    let phi = mc_parser::transform_state(&phi_rule);
+
+    InputData{
+        petri_net: petri_net_info,
+        ap_map,
+        phi
+    }
 }
 
 fn validate(petri_net_info: &PetriNetInfo) {
@@ -174,12 +202,12 @@ where
         match value_as_string.parse::<T>() {
             Ok(value) => tmp_vec.push(value),
             Err(e) => {
-                return Result::Err(ParseErrorWithSource {
+                return Err(ParseErrorWithSource {
                     source: value_as_string.to_owned(),
                     error: e,
                 })
             }
         }
     }
-    Result::Ok(tmp_vec)
+    Ok(tmp_vec)
 }

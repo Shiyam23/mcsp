@@ -1,10 +1,21 @@
 mod mcsp;
 mod utils;
+mod parser;
+
+use clap::Parser;
 use crate::mcsp::ModelCheckInfo;
+
+#[derive(Parser)]
+struct Args {
+    /// Path of the input file
+    #[arg(short, long)]
+    input_file: String,
+}
 
 fn main() {
     init();
-    let mc_info = ModelCheckInfo::parse("examples/petri_net.txt", "examples/pctl_test.txt");
+    let args = Args::parse();
+    let mc_info = ModelCheckInfo::parse(&args.input_file);
     mc_info.evaluate_pctl();
 }
 

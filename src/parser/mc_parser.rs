@@ -1,68 +1,22 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::{Debug, Display},
+    fmt::Display,
     process::exit,
     str::FromStr,
 };
 
-use crate::{mcsp::ModelCheckInfo, utils::file};
+use crate::mcsp::ModelCheckInfo;
 use log::error;
-use pest::{
-    iterators::{Pair, Pairs},
-    Parser,
-};
-use pest_derive::Parser;
-use petgraph::{graph::{NodeIndex, DiGraph}, Direction::{self, Incoming}};
+use pest::iterators::Pair;
+use petgraph::{graph::{NodeIndex, DiGraph}, Direction::Incoming};
+use crate::parser::parser::Rule;
 
-type ApSet = Vec<String>;
 type Marking = Vec<usize>;
 type Markings = Vec<Marking>;
 type ApMap = HashMap<String, Markings>;
 
-#[derive(Parser)]
-#[grammar = "parser/pctl.pest"]
-struct MCParser;
-
-#[allow(dead_code)]
-pub struct MCInfo {
-    pub ap: ApSet,
-    pub ap_map: ApMap,
-    pub phi: Box<dyn StatePhi>,
-}
-
-pub fn parse(path: &str) -> MCInfo {
-    let file_content = file::read_file(path);
-    let pctl = MCParser::parse(Rule::Main, &file_content);
-    match pctl {
-        Ok(pairs) => transform_main(pairs),
-        Err(_) => {
-            error!("Phi expression does not follow the syntax! Terminating");
-            exit(0);
-        }
-    }
-}
-
-fn transform_main(pairs: Pairs<Rule>) -> MCInfo {
-    let main_rule = pairs.collect::<Vec<Pair<Rule>>>();
-    assert_eq!(main_rule.len(), 4);
-    let ap = transform_ap(main_rule.get(0).unwrap());
-    let ap_map = transform_ap_map(main_rule.get(1).unwrap());
-    let phi = transform_state(main_rule.get(2).unwrap());
-    MCInfo { ap, ap_map, phi }
-    //info!("{}", state_phi.as_ref());
-}
-
-fn transform_ap(pair: &Pair<Rule>) -> ApSet {
-    assert!(pair.as_rule() == Rule::AP);
-    pair.clone()
-        .into_inner()
-        .map(|pair| pair.as_str().into())
-        .collect::<Vec<String>>()
-        .into()
-}
-
-fn transform_ap_map(pair: &Pair<Rule>) -> ApMap {
-    assert!(pair.as_rule() == Rule::L);
+pub fn transform_ap_map(pair: &Pair<Rule>) -> ApMap {
+    assert_eq!(pair.as_rule(), Rule::AP);
     let mut ap_map = ApMap::new();
     for ap_assign in pair.clone().into_inner() {
         let elements: Vec<Pair<Rule>> = ap_assign.into_inner().collect();
@@ -102,7 +56,7 @@ impl ParseOrQuit for &str {
     }
 }
 
-fn transform_state(pair: &Pair<Rule>) -> Box<dyn StatePhi> {
+pub fn transform_state(pair: &Pair<Rule>) -> Box<dyn StatePhi> {
     let inner_rules = pair.clone().into_inner().collect::<Vec<Pair<Rule>>>();
     match pair.as_rule() {
         Rule::Phi_and => {
@@ -316,7 +270,7 @@ impl PathPhi for Next {
             .iter()
             .flat_map(|index| {
                 graph
-                    .neighbors_directed(*index, Direction::Incoming)
+                    .neighbors_directed(*index, Incoming)
                     .collect::<Vec<NodeIndex>>()
             })
             .collect();

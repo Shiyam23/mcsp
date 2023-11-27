@@ -4,14 +4,13 @@ use std::{
 };
 
 use crate::utils::{
-    mc_parser::{self, MCInfo, StatePhi},
     pnet::{Marking, PetriNet},
-    pnet_parser::{parse, PetriNetInfo},
 };
 use log::{error, info};
 use petgraph::{graph::DiGraph, graph::NodeIndex};
+use crate::parser::parser::{InputData, parse};
+use crate::parser::mc_parser::StatePhi;
 
-#[allow(dead_code)]
 pub struct ModelCheckInfo {
     pub reach_graph: DiGraph<Marking, f64>,
     pub initial_marking: Marking,
@@ -20,21 +19,15 @@ pub struct ModelCheckInfo {
 }
 
 impl ModelCheckInfo {
-    pub fn parse(p_file: &str, mc_file: &str) -> ModelCheckInfo {
+    pub fn parse(input_file: &str) -> ModelCheckInfo {
         info!("Starting MCSP...");
 
         // Parsing petri net
         info!("Parsing petri net...");
-        let p_info: PetriNetInfo = parse(p_file);
-        let initial_marking: Marking = p_info.initial_marking.to_owned();
-        let pnet: PetriNet = PetriNet::from_info(&p_info);
-        drop(p_info);
+        let mut input_data: InputData = parse(input_file);
+        let initial_marking: Marking = input_data.petri_net.initial_marking.to_owned();
+        let pnet: PetriNet = PetriNet::from_info(&input_data.petri_net);
         info!("Successfully parsed petri net!");
-
-        // Parsing modelcheck info
-        info!("Parsing Modelcheck Info ...");
-        let mut mc_info = mc_parser::parse(mc_file);
-        info!("Successfully parsed Model-check Info");
 
         // Reachability Graph
         info!("Creating reachability graph for given petri net ...");
@@ -42,21 +35,19 @@ impl ModelCheckInfo {
         //println!("{:?}", dot::Dot::new(&reach_graph));
         info!("Successfully created reachability graph");
 
-        let new_ap_map = Self::map_marking_to_node_indices(&reach_graph, &mc_info.ap_map);
+        let new_ap_map = Self::map_marking_to_node_indices(&reach_graph, &input_data.ap_map);
 
         //Validate mc_info
-        Self::validate_mc_info(&mut mc_info, &reach_graph);
-
+        Self::validate_mc_info(&mut input_data, &reach_graph);
         ModelCheckInfo {
             reach_graph,
             initial_marking,
             ap_map: new_ap_map,
-            pctl: mc_info.phi,
+            pctl: input_data.phi,
         }
     }
 
     pub fn evaluate_pctl(&self) {
-        //println!("{}", self.pctl);
         let markings = self.pctl.evaluate(self);
         //println!("{:?}", markings);
         println!("{:?}", markings.iter().map(|index| &self.reach_graph[*index]).collect::<Vec<&Marking>>());
@@ -79,17 +70,8 @@ impl ModelCheckInfo {
             .collect()
     }
 
-    fn validate_mc_info(mc_info: &mut MCInfo, graph: &DiGraph<Marking, f64>) {
+    fn validate_mc_info(mc_info: &mut InputData, graph: &DiGraph<Marking, f64>) {
         let graph_markings: Vec<&Marking> = graph.node_weights().collect();
-
-        // Check whether all ap's in ap_map were declared before
-        if let Some(ap) = mc_info.ap_map.keys().find(|ap| !mc_info.ap.contains(ap)) {
-            error!(
-                "\"{}\" is assigned a marking but is not defined in the set",
-                ap
-            );
-            exit(0);
-        };
 
         // Check whether the assigned markings are reached (is a node in the reachability graph)
         for ap in mc_info.ap_map.keys() {
