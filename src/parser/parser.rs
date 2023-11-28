@@ -1,11 +1,11 @@
+use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use std::{collections::HashMap, str::FromStr};
-use pest::iterators::Pair;
 
-use crate::utils::file::read_file;
 use crate::parser::mc_parser;
 use crate::parser::mc_parser::StatePhi;
+use crate::utils::file::read_file;
 
 // All identifiers for the input petri net
 const PLACE_ID: &str = "P";
@@ -25,7 +25,7 @@ const PETRI_TAGS: [&str; 6] = [
     INPUT_ARCS_ID,
     OUTPUT_ARCS_ID,
     INITIAL_MARKINGS_ID,
-    LAMBDAS_ID
+    LAMBDAS_ID,
 ];
 
 type Marking = Vec<usize>;
@@ -39,7 +39,7 @@ struct PetriNetParser;
 pub struct InputData {
     pub petri_net: PetriNetInfo,
     pub ap_map: ApMap,
-    pub phi: Box<dyn StatePhi>
+    pub phi: Box<dyn StatePhi>,
 }
 #[derive(Default, Debug)]
 pub struct PetriNetInfo {
@@ -100,10 +100,10 @@ pub fn parse(file_path: &str) -> InputData {
     let phi_rule: Pair<Rule> = petri_net.find_first_tagged(PHI_ID).unwrap();
     let phi = mc_parser::transform_state(&phi_rule);
 
-    InputData{
+    InputData {
         petri_net: petri_net_info,
         ap_map,
-        phi
+        phi,
     }
 }
 

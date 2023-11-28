@@ -6,10 +6,12 @@ use std::{
 };
 
 use crate::mcsp::ModelCheckInfo;
+use crate::parser::parser::Rule;
 use log::error;
 use pest::iterators::Pair;
-use petgraph::{graph::{NodeIndex, DiGraph}, Direction::Incoming};
-use crate::parser::parser::Rule;
+use petgraph::graph::Edges;
+use petgraph::visit::EdgeRef;
+use petgraph::{graph::{DiGraph, NodeIndex}, Direction::Incoming, Outgoing};
 
 type Marking = Vec<usize>;
 type Markings = Vec<Marking>;
@@ -173,6 +175,17 @@ impl Display for Comp {
     }
 }
 
+impl Comp {
+    pub fn evaluate<T: PartialOrd>(&self, first: T, second: T) -> bool {
+        match self {
+            Comp::Less => first < second,
+            Comp::Leq => first <= second,
+            Comp::Greater => first > second,
+            Comp::Geq => first >= second,
+        }
+    }
+}
+
 struct True;
 
 impl StatePhi for True {
@@ -198,7 +211,10 @@ impl StatePhi for AndPhi {
     fn evaluate<'a>(&'a self, model_check_info: &'a ModelCheckInfo) -> HashSet<NodeIndex> {
         let left_markings = self.left_phi.evaluate(model_check_info);
         let right_markings = self.right_phi.evaluate(model_check_info);
-        left_markings.intersection(&right_markings).copied().collect()
+        left_markings
+            .intersection(&right_markings)
+            .copied()
+            .collect()
     }
 }
 
@@ -284,13 +300,7 @@ impl PathPhi for Next {
                 }
                 sum += graph.edge_weight(edge_index.unwrap()).unwrap();
             }
-            let satisfied: bool = match comp {
-                Comp::Less => sum <= prob_bound,
-                Comp::Leq => sum < prob_bound,
-                Comp::Greater => sum > prob_bound,
-                Comp::Geq => sum >= prob_bound,
-            };
-            if satisfied {
+            if comp.evaluate(sum, prob_bound) {
                 chosen_indices.insert(pre_node_index);
             }
         }
@@ -310,22 +320,24 @@ impl Until {
         left_tsi: &HashSet<NodeIndex>,
         right_tsi: &HashSet<NodeIndex>,
         all_indices: &HashSet<NodeIndex>,
-        graph: &DiGraph<Marking, f64>
+        graph: &DiGraph<Marking, f64>,
     ) -> HashSet<NodeIndex> {
         let mut new = all_indices.clone();
         loop {
             let tmp1 = all_indices.difference(&new);
-            let tmp2: HashSet<NodeIndex> = tmp1.flat_map(|i| graph.neighbors_directed(*i, Incoming)).collect();
+            let tmp2: HashSet<NodeIndex> = tmp1
+                .flat_map(|i| graph.neighbors_directed(*i, Incoming))
+                .collect();
             let tmp3: HashSet<NodeIndex> = all_indices.difference(&tmp2).copied().collect();
             let tmp4: HashSet<NodeIndex> = left_tsi.intersection(&tmp3).copied().collect();
             let tmp5: HashSet<NodeIndex> = right_tsi.union(&tmp4).copied().collect();
             let tmp6: HashSet<NodeIndex> = new.intersection(&tmp5).copied().collect();
             if tmp6 == new {
-                break
+                break;
             } else {
                 new = tmp6.clone();
             };
-        }   
+        }
         new
     }
 
@@ -334,31 +346,30 @@ impl Until {
         left_tsi: &HashSet<NodeIndex>,
         right_tsi: &HashSet<NodeIndex>,
         all: &HashSet<NodeIndex>,
-        graph: &DiGraph<Marking, f64>
+        graph: &DiGraph<Marking, f64>,
     ) -> HashSet<NodeIndex> {
         let mut new = right_tsi.clone();
-        //println!("{:?}", new);
-        let only_pre: HashSet<NodeIndex> = graph.node_indices().flat_map(|i| graph.neighbors_directed(i, Incoming)).collect();
+        let only_pre: HashSet<NodeIndex> = graph
+            .node_indices()
+            .flat_map(|i| graph.neighbors_directed(i, Incoming))
+            .collect();
         loop {
             let tmp1 = all.difference(&new);
-            let tmp2: HashSet<NodeIndex> = tmp1.flat_map(|i| graph.neighbors_directed(*i, Incoming)).collect();
+            let tmp2: HashSet<NodeIndex> = tmp1
+                .flat_map(|i| graph.neighbors_directed(*i, Incoming))
+                .collect();
             let tmp3: HashSet<NodeIndex> = all.difference(&tmp2).copied().collect();
             let tmp4: HashSet<NodeIndex> = left_tsi.intersection(&tmp3).copied().collect();
             let tmp5: HashSet<NodeIndex> = only_pre.intersection(&tmp4).copied().collect();
-            //println!("{:?}", tmp5);
             let tmp6: HashSet<NodeIndex> = new.union(&tmp5).copied().collect();
             if tmp6 == new {
-                break
+                break;
             } else {
                 new = tmp6.clone();
             };
-        }   
+        }
         new
     }
-
-
-
-
 }
 
 #[allow(unused_variables)]
@@ -373,13 +384,12 @@ impl PathPhi for Until {
         comp: &Comp,
         prob_bound: f64,
     ) -> HashSet<NodeIndex> {
-
         let all: HashSet<_> = model_check_info.reach_graph.node_indices().collect();
-        
+
         let geq_zero = *comp == Comp::Geq && prob_bound == 0.0;
         let leq_one = *comp == Comp::Leq && prob_bound == 1.0;
         if geq_zero || leq_one {
-            return all
+            return all;
         }
 
         let left_phi = self.prev.evaluate(model_check_info);
@@ -388,7 +398,8 @@ impl PathPhi for Until {
         // not E(phi_1 U phi_2) = A(not phi_2 W (not phi_1 and not phi_2))
         let not_left_phi: HashSet<NodeIndex> = all.difference(&left_phi).copied().collect();
         let not_right_phi: HashSet<NodeIndex> = all.difference(&right_phi).copied().collect();
-        let not_left_and_not_right: HashSet<_> = not_left_phi.intersection(&not_right_phi).copied().collect();
+        let not_left_and_not_right: HashSet<_> =
+            not_left_phi.intersection(&not_right_phi).copied().collect();
 
         let left_tsi = not_right_phi;
         let right_tsi = not_left_and_not_right;
@@ -402,20 +413,39 @@ impl PathPhi for Until {
         for index in &s_1 {
             prob_map.insert(*index, 1.0);
         }
-        let s_q: HashSet<NodeIndex> = all.difference(&s_0.union(&s_1).copied().collect()).copied().collect();
+        let s_q: HashSet<NodeIndex> = all
+            .difference(&s_0.union(&s_1).copied().collect())
+            .copied()
+            .collect();
         for node_index in &s_q {
             prob_map.insert(*node_index, 0.0);
         }
-        todo!();
-        // loop {
-        //     for node_index in &s_q {
-        //         let graph = &model_check_info.reach_graph;
-        //         let neighbors: HashSet<NodeIndex> = graph.neighbors_directed(*node_index, Incoming).collect();
-        //         let neighbors_in_s1: HashSet<_> = neighbors.iter().filter(|i| s_1.contains(i)).collect();
-        //         let neighbors_in_sq: HashSet<_> = neighbors.iter().filter(|i| s_q.contains(i)).collect();
-                
-        //     }
-            
-        // }
+        let graph = &model_check_info.reach_graph;
+        loop {
+            let mut max_error: f64 = 0.0;
+            for node_index in &s_q {
+                let edges: Edges<_, _> = graph.edges_directed(*node_index, Outgoing);
+                let prob_to_sq: f64 = edges
+                    .clone()
+                    .filter(|i| s_q.contains(&i.target()))
+                    .map(|i| i.weight() * prob_map.get(&i.target()).unwrap())
+                    .sum();
+                let prob_to_s1: f64 = edges
+                    .filter(|i| s_1.contains(&i.target()))
+                    .map(|i| i.weight())
+                    .sum();
+                let prob = prob_to_sq + prob_to_s1;
+                max_error = max_error.max(prob_map[node_index] - prob);
+                prob_map.insert(*node_index, prob);
+            }
+            if max_error < model_check_info.max_error {
+                break;
+            }
+        }
+        prob_map
+            .into_iter()
+            .filter(|(k, v)| comp.evaluate(*v, prob_bound))
+            .map(|(k, v)| k)
+            .collect()
     }
 }

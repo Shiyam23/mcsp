@@ -1,21 +1,26 @@
 mod mcsp;
-mod utils;
 mod parser;
+mod utils;
 
-use clap::Parser;
 use crate::mcsp::ModelCheckInfo;
+use clap::Parser;
 
 #[derive(Parser)]
 struct Args {
     /// Path of the input file
     #[arg(short, long)]
     input_file: String,
+
+    /// Max error used by the value iteration algorithm to compute the states satisfying an
+    /// 'UNTIL' pctl statement.
+    #[arg(long("max-error"), default_value_t = 0.01)]
+    max_error: f64
 }
 
 fn main() {
     init();
     let args = Args::parse();
-    let mc_info = ModelCheckInfo::parse(&args.input_file);
+    let mc_info = ModelCheckInfo::parse(&args.input_file, args.max_error);
     mc_info.evaluate_pctl();
 }
 

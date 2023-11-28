@@ -3,23 +3,22 @@ use std::{
     process::exit,
 };
 
-use crate::utils::{
-    pnet::{Marking, PetriNet},
-};
+use crate::parser::mc_parser::StatePhi;
+use crate::parser::parser::{parse, InputData};
+use crate::utils::pnet::{Marking, PetriNet};
 use log::{error, info};
 use petgraph::{graph::DiGraph, graph::NodeIndex};
-use crate::parser::parser::{InputData, parse};
-use crate::parser::mc_parser::StatePhi;
 
 pub struct ModelCheckInfo {
     pub reach_graph: DiGraph<Marking, f64>,
     pub initial_marking: Marking,
     pub ap_map: HashMap<String, HashSet<NodeIndex>>,
     pub pctl: Box<dyn StatePhi>,
+    pub max_error: f64
 }
 
 impl ModelCheckInfo {
-    pub fn parse(input_file: &str) -> ModelCheckInfo {
+    pub fn parse(input_file: &str, max_error: f64) -> ModelCheckInfo {
         info!("Starting MCSP...");
 
         // Parsing petri net
@@ -32,7 +31,7 @@ impl ModelCheckInfo {
         // Reachability Graph
         info!("Creating reachability graph for given petri net ...");
         let reach_graph = pnet.get_reach_graph();
-        //println!("{:?}", dot::Dot::new(&reach_graph));
+        //println!("{:?}", Dot::new(&reach_graph));
         info!("Successfully created reachability graph");
 
         let new_ap_map = Self::map_marking_to_node_indices(&reach_graph, &input_data.ap_map);
@@ -44,13 +43,20 @@ impl ModelCheckInfo {
             initial_marking,
             ap_map: new_ap_map,
             pctl: input_data.phi,
+            max_error
         }
     }
 
     pub fn evaluate_pctl(&self) {
         let markings = self.pctl.evaluate(self);
         //println!("{:?}", markings);
-        println!("{:?}", markings.iter().map(|index| &self.reach_graph[*index]).collect::<Vec<&Marking>>());
+        println!(
+            "{:?}",
+            markings
+                .iter()
+                .map(|index| &self.reach_graph[*index])
+                .collect::<Vec<&Marking>>()
+        );
     }
 
     fn map_marking_to_node_indices(
