@@ -3,7 +3,7 @@ use std::{
     process::exit,
 };
 
-use crate::parser::mc_parser::StatePhi;
+use crate::pctl::StatePhi;
 use crate::parser::parser::{parse, InputData};
 use crate::utils::pnet::{Marking, PetriNet};
 use log::{error, info};
@@ -49,9 +49,10 @@ impl ModelCheckInfo {
 
     pub fn evaluate_pctl(&self) {
         let markings = self.pctl.evaluate(self);
-        //println!("{:?}", markings);
-        println!(
-            "{:?}",
+
+        // Print all markings satisfying the pctl statement
+        info!("The following markings satisfy the given pctl statement:");
+        info!("{:?}",
             markings
                 .iter()
                 .map(|index| &self.reach_graph[*index])

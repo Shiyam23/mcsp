@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Display,
     process::exit,
     str::FromStr,
 };
@@ -12,6 +11,8 @@ use pest::iterators::Pair;
 use petgraph::graph::Edges;
 use petgraph::visit::EdgeRef;
 use petgraph::{graph::{DiGraph, NodeIndex}, Direction::Incoming, Outgoing};
+use crate::pctl::{AP, Next, NotPhi, PathPhi, Prob, StatePhi, Until, True};
+use crate::utils::common::Comp;
 
 type Marking = Vec<usize>;
 type Markings = Vec<Marking>;
@@ -129,65 +130,6 @@ fn transform_path(pair: &Pair<Rule>) -> Box<dyn PathPhi> {
     }
 }
 
-pub trait StatePhi {
-    fn fmt(&self) -> String;
-    fn evaluate<'a>(&'a self, model_check_info: &'a ModelCheckInfo) -> HashSet<NodeIndex>;
-}
-
-impl Display for dyn StatePhi {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.fmt())
-    }
-}
-
-trait PathPhi {
-    fn fmt(&self) -> String;
-    fn evaluate<'a>(
-        &'a self,
-        model_check_info: &'a ModelCheckInfo,
-        comp: &Comp,
-        prob_bound: f64,
-    ) -> HashSet<NodeIndex>;
-}
-
-impl Display for dyn PathPhi {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.fmt())
-    }
-}
-#[derive(PartialEq)]
-enum Comp {
-    Less,
-    Leq,
-    Greater,
-    Geq,
-}
-
-impl Display for Comp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let char = match self {
-            Comp::Less => "<",
-            Comp::Leq => "<=",
-            Comp::Greater => ">",
-            Comp::Geq => ">=",
-        };
-        write!(f, "{}", char)
-    }
-}
-
-impl Comp {
-    pub fn evaluate<T: PartialOrd>(&self, first: T, second: T) -> bool {
-        match self {
-            Comp::Less => first < second,
-            Comp::Leq => first <= second,
-            Comp::Greater => first > second,
-            Comp::Geq => first >= second,
-        }
-    }
-}
-
-struct True;
-
 impl StatePhi for True {
     fn fmt(&self) -> String {
         "true".into()
@@ -218,10 +160,6 @@ impl StatePhi for AndPhi {
     }
 }
 
-struct NotPhi {
-    phi: Box<dyn StatePhi>,
-}
-
 impl StatePhi for NotPhi {
     fn fmt(&self) -> String {
         format!("¬ ({})", self.phi)
@@ -232,12 +170,6 @@ impl StatePhi for NotPhi {
         let all_nodes: HashSet<NodeIndex> = model_check_info.reach_graph.node_indices().collect();
         all_nodes.difference(&phi_nodes).copied().collect()
     }
-}
-
-struct Prob {
-    phi: Box<dyn PathPhi>,
-    comp: Comp,
-    probability: f64,
 }
 
 impl StatePhi for Prob {
@@ -251,10 +183,6 @@ impl StatePhi for Prob {
     }
 }
 
-struct AP {
-    value: String,
-}
-
 impl StatePhi for AP {
     fn fmt(&self) -> String {
         self.value.clone()
@@ -263,10 +191,6 @@ impl StatePhi for AP {
     fn evaluate<'a>(&'a self, model_check_info: &'a ModelCheckInfo) -> HashSet<NodeIndex> {
         model_check_info.ap_map[&self.value].clone()
     }
-}
-
-struct Next {
-    phi: Box<dyn StatePhi>,
 }
 
 impl PathPhi for Next {
@@ -306,11 +230,6 @@ impl PathPhi for Next {
         }
         chosen_indices
     }
-}
-
-struct Until {
-    prev: Box<dyn StatePhi>,
-    until: Box<dyn StatePhi>,
 }
 
 #[allow(unused_variables)]

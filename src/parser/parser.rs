@@ -4,7 +4,7 @@ use pest_derive::Parser;
 use std::{collections::HashMap, str::FromStr};
 
 use crate::parser::mc_parser;
-use crate::parser::mc_parser::StatePhi;
+use crate::pctl::StatePhi;
 use crate::utils::file::read_file;
 
 // All identifiers for the input petri net
@@ -56,7 +56,6 @@ where
     T: FromStr,
 {
     source: String,
-    #[allow(dead_code)]
     error: T::Err,
 }
 
