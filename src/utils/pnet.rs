@@ -163,7 +163,7 @@ impl PetriNet {
             let path_res = dijkstra(graph, node_index, Some(*marking_index), |_| 1);
             if path_res.get(marking_index).is_some() {
                 println!(
-                    "There is a path from {:?} to {:?}! Thats why the graph is infinite",
+                    "There is a path from {:?} to {:?}! That is why the graph is infinite",
                     &graph[node_index], marking
                 );
                 exit(0);
