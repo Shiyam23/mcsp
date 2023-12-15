@@ -56,6 +56,7 @@ where
     T: FromStr,
 {
     source: String,
+    #[allow(dead_code)]
     error: T::Err,
 }
 

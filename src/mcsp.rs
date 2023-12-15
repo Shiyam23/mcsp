@@ -6,7 +6,7 @@ use std::{
 use crate::pctl::StatePhi;
 use crate::parser::parser::{parse, InputData};
 use crate::utils::pnet::{Marking, PetriNet};
-use log::{error, info, warn};
+use log::{error, info};
 use petgraph::{graph::DiGraph, graph::NodeIndex};
 
 pub struct ModelCheckInfo {
