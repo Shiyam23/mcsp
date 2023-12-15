@@ -6,7 +6,7 @@ use std::{
 use crate::pctl::StatePhi;
 use crate::parser::parser::{parse, InputData};
 use crate::utils::pnet::{Marking, PetriNet};
-use log::{error, info};
+use log::{error, info, warn};
 use petgraph::{graph::DiGraph, graph::NodeIndex};
 
 pub struct ModelCheckInfo {
@@ -34,10 +34,10 @@ impl ModelCheckInfo {
         //println!("{:?}", Dot::new(&reach_graph));
         info!("Successfully created reachability graph");
 
-        let new_ap_map = Self::map_marking_to_node_indices(&reach_graph, &input_data.ap_map);
-
         //Validate mc_info
         Self::validate_mc_info(&mut input_data, &reach_graph);
+
+        let new_ap_map = Self::map_marking_to_node_indices(&reach_graph, &input_data.ap_map);
         ModelCheckInfo {
             reach_graph,
             initial_marking,
