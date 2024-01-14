@@ -18,28 +18,12 @@ tuple = {lb ~ (element ~ separator)* ~ element ~ rb}
 pair_set = {lc ~ (pair ~ separator)* ~ pair ~ rc}
 element_set = {lc ~ (element ~ separator)* ~ element ~ rc}
 
-// pctl related elements
-phi_id = {"phi"}
-Phi_id = {"Phi"}
-true = {"tt"}
-and_op = _{"AND"}
-not_op = _{"NOT "}
-prob = {"P" ~ lb ~ phi ~ separator ~ comp ~ float ~ rb}
-
 // Elements specifically for model checking
 marking = {lb ~ (int ~ separator)* ~ int ~ rb}
 markings = {lc ~ (marking ~ separator)* ~ marking ~ rc}
 ap_assign = {lb ~ ap ~ separator ~ markings ~ rb}
 AP_items = _{lc ~ (ap_assign ~ separator)* ~ ap_assign ~ rc}
 AP = {"AP" ~ eq ~ AP_items}
-
-// Expressions
-Phi_and = {and_op ~ lb ~ Phi ~ separator ~ Phi ~ rb}
-Phi_not = {not_op ~ Phi}
-phi_next = {"NEXT " ~ Phi}
-phi_until = {Phi ~ "UNTIL" ~ Phi}
-Phi = _{true | prob | Phi_and | Phi_not | "(" ~ Phi ~ ")" | ap}
-phi = _{ phi_next | phi_until | "(" ~ phi ~ ")"}
 
 // Petri net
 petri_net = _{
@@ -52,4 +36,4 @@ petri_net = _{
 }
 
 // Main
-Main = _{SOI ~ petri_net ~ #AP_MAP = AP ~ #PHI = Phi ~ EOI}
+Main = _{SOI ~ petri_net ~ #AP_MAP = AP}

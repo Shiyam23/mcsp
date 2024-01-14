@@ -1,0 +1,26 @@
+WHITESPACE = _{" "|"\t"|NEWLINE}
+lb = _{"("}
+rb = _{")"}
+separator = _{","}
+comp = {"<=" | "<" | ">=" | ">"}
+float = {ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+}
+ap = @{ASCII_ALPHA+}
+
+// pctl related elements
+phi_id = {"phi"}
+Phi_id = {"Phi"}
+true = {"tt"}
+and_op = _{"AND"}
+not_op = _{"NOT "}
+prob = {"P" ~ lb ~ phi ~ separator ~ comp ~ float ~ rb}
+
+// Expressions
+Phi_and = {and_op ~ lb ~ Phi ~ separator ~ Phi ~ rb}
+Phi_not = {not_op ~ Phi}
+phi_next = {"NEXT " ~ Phi}
+phi_until = {Phi ~ "UNTIL" ~ Phi}
+Phi = _{true | prob | Phi_and | Phi_not | "(" ~ Phi ~ ")" | ap}
+phi = _{ phi_next | phi_until | "(" ~ phi ~ ")"}
+prefix = _{"PHI" ~ "="}
+
+Main = _{SOI ~ prefix ~ Phi ~ EOI}

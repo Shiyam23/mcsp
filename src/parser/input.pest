@@ -1,0 +1,4 @@
+graph = _{#GRAPH_ID = {PN | DPN} ~ "=" ~
+
+// Main
+Main = _{SOI ~ #GRAPH = graph ~ #AP_MAP = AP ~ #PHI = Phi ~ EOI}

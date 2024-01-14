@@ -1,4 +1,7 @@
 use std::fmt::Display;
+use std::process::exit;
+use std::str::FromStr;
+use log::error;
 
 #[derive(PartialEq)]
 pub enum Comp {
@@ -28,4 +31,38 @@ impl Comp {
             Comp::Geq => first >= second,
         }
     }
+
+    pub fn is_upper_bound(&self) -> bool {
+        match self {
+            Comp::Less => true,
+            Comp::Leq => true,
+            Comp::Greater => false,
+            Comp::Geq => false
+        }
+    }
+}
+
+pub trait ParseOrQuit {
+    fn parse_or_quit<T: FromStr>(&self, type_name: &str) -> T;
+}
+impl ParseOrQuit for &str {
+    fn parse_or_quit<T: FromStr>(&self, type_name: &str) -> T {
+        let test = self.parse::<T>();
+        match test {
+            Ok(value) => value,
+            Err(_) => {
+                error!("{} is not valid {}! Terminating", self, type_name);
+                exit(0);
+            }
+        }
+    }
+}
+
+pub struct ParseErrorWithSource<T>
+    where
+        T: FromStr,
+{
+    pub source: String,
+    #[allow(dead_code)]
+    pub error: T::Err,
 }

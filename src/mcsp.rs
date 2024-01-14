@@ -1,96 +1,97 @@
 use std::{
     collections::{HashMap, HashSet},
-    process::exit,
 };
+use std::fmt::Debug;
+use std::marker::PhantomData;
+use log::info;
+use petgraph::graph::{NodeIndex};
+use crate::{Args};
+use crate::input_graph::{ApMap, InputGraph, MDP, Node, ParseImpl};
+use crate::input_graph::Node::{Action, State};
+use crate::logic::{Formula, parse_formula};
+use crate::utils::file::read_file;
 
-use crate::pctl::StatePhi;
-use crate::parser::parser::{parse, InputData};
-use crate::utils::pnet::{Marking, PetriNet};
-use log::{error, info};
-use petgraph::{graph::DiGraph, graph::NodeIndex};
-
-pub struct ModelCheckInfo {
-    pub reach_graph: DiGraph<Marking, f64>,
-    pub initial_marking: Marking,
-    pub ap_map: HashMap<String, HashSet<NodeIndex>>,
-    pub pctl: Box<dyn StatePhi>,
+pub struct ModelCheckInfo<'a, T> {
+    pub reach_graph: MDP<T>,
+    pub ap_map: &'a ApMap<T>,
+    pub formula: Box<dyn Formula>,
     pub max_error: f64
 }
 
-impl ModelCheckInfo {
-    pub fn parse(input_file: &str, max_error: f64) -> ModelCheckInfo {
-        info!("Starting MCSP...");
+pub struct PctlInfo {
+    pub reach_graph: MDP<NodeIndex>,
+    pub ap_map: HashMap<String, HashSet<NodeIndex>>,
+    pub max_error: f64
+}
 
-        // Parsing petri net
-        info!("Parsing petri net...");
-        let mut input_data: InputData = parse(input_file);
-        let initial_marking: Marking = input_data.petri_net.initial_marking.to_owned();
-        let pnet: PetriNet = PetriNet::from_info(&input_data.petri_net);
-        info!("Successfully parsed petri net!");
+pub struct ModelCheck<T: InputGraph, P: ParseImpl<T>> {
+    p1: PhantomData<T>,
+    p2: PhantomData<P>,
+}
 
-        // Reachability Graph
-        info!("Creating reachability graph for given petri net ...");
-        let reach_graph = pnet.get_reach_graph();
-        //println!("{:?}", Dot::new(&reach_graph));
-        info!("Successfully created reachability graph");
-
-        //Validate mc_info
-        Self::validate_mc_info(&mut input_data, &reach_graph);
-
-        let new_ap_map = Self::map_marking_to_node_indices(&reach_graph, &input_data.ap_map);
-        ModelCheckInfo {
-            reach_graph,
-            initial_marking,
-            ap_map: new_ap_map,
-            pctl: input_data.phi,
-            max_error
-        }
+impl<T, P> ModelCheck<T, P> where T: InputGraph, P: ParseImpl<T>{
+    //noinspection RsTraitObligations
+    pub fn start(args: Args) {
+        info!("Parsing input file");
+        let content = read_file(&args.input_file);
+        let input_graph: Box<T> = P::parse(&content);
+        let formula = parse_formula(args.logic_type, &content);
+        input_graph.validate_graph();
+        let mc: ModelCheckInfo<T::S> = ModelCheckInfo{
+            reach_graph: input_graph.to_mdp(),
+            ap_map: input_graph.get_ap_map(),
+            formula,
+            max_error: args.max_error,
+        };
+        Self::evaluate_pctl(mc);
     }
 
-    pub fn evaluate_pctl(&self) {
-        let markings = self.pctl.evaluate(self);
+    pub fn evaluate_pctl<K>(mc_info: ModelCheckInfo<K>) where K: Debug + PartialEq + Clone {
+        let normalized_mdp = mc_info.reach_graph.map(
+            |ni,node| match node {
+                State(_) => {State(ni)}
+                Action(a) => {Action(a.into())}
+            },
+            |_,e| *e
+        );
+
+        let normalized_ap_map = Self::normalize_ap_map(&mc_info.reach_graph, mc_info.ap_map);
+        let pctl_info: PctlInfo = PctlInfo{
+            reach_graph: normalized_mdp,
+            ap_map: normalized_ap_map,
+            max_error: mc_info.max_error
+        };
+
+        let markings = mc_info.formula.evaluate(&pctl_info);
 
         // Print all markings satisfying the pctl statement
         info!("The following markings satisfy the given pctl statement:");
         info!("{:?}",
             markings
                 .iter()
-                .map(|index| &self.reach_graph[*index])
-                .collect::<Vec<&Marking>>()
+                .map(|index| mc_info.reach_graph[*index].clone())
+                .collect::<Vec<Node<K>>>()
         );
     }
 
-    fn map_marking_to_node_indices(
-        graph: &DiGraph<Vec<usize>, f64>,
-        src_map: &HashMap<String, Vec<Marking>>,
-    ) -> HashMap<String, HashSet<NodeIndex>> {
-        src_map
-            .iter()
-            .map(|(k, v)| {
-                (
-                    k.to_owned(),
-                    v.iter()
-                        .map(|m| graph.node_indices().find(|i| graph[*i] == *m).unwrap())
-                        .collect(),
-                )
-            })
-            .collect()
-    }
+    fn normalize_ap_map<K>(
+        graph: &MDP<K>,
+        src_map: &HashMap<String, HashSet<K>>,
+    ) -> HashMap<String, HashSet<NodeIndex>> where K: PartialEq{
 
-    fn validate_mc_info(mc_info: &mut InputData, graph: &DiGraph<Marking, f64>) {
-        let graph_markings: Vec<&Marking> = graph.node_weights().collect();
-
-        // Check whether the assigned markings are reached (is a node in the reachability graph)
-        for ap in mc_info.ap_map.keys() {
-            for assigned_marking in &mc_info.ap_map[ap] {
-                if !graph_markings.contains(&assigned_marking) {
-                    error!(
-                        "{:?} was assigned to \"{}\" but is never reached! Terminating ...",
-                        assigned_marking, ap
-                    );
-                    exit(0);
-                }
+        let mut normalized_ap_map: HashMap<String, HashSet<NodeIndex>> = HashMap::new();
+        for (ap, markings) in src_map {
+            normalized_ap_map.insert(ap.into(), HashSet::new());
+            for marking in markings {
+                let node_index = graph.node_indices().find(|&node_index| match &graph[node_index] {
+                    State(m) => m == marking,
+                    Action(_) => false
+                }).unwrap();
+                normalized_ap_map.get_mut(ap).unwrap().insert(node_index);
             }
         }
+        normalized_ap_map
     }
+
+
 }

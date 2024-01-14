@@ -8,4 +8,4 @@ AP = {
     (init, {(1,0,0,0,0,0,0)}),
     (succ, {(0,1,1,0,0,0,0)})
 }
-P(init UNTIL succ, >= 0.25)
+PHI = P(init UNTIL succ, >= 0.25)
