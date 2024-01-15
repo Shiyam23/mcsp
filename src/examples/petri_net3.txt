@@ -9,4 +9,4 @@ AP = {
     (goal, {(0,0,0,0,0,0,0,1)}),
     (avoid, {(0,0,0,0,0,0,1,0)})
 }
-P(tt UNTIL AND(goal, NOT avoid), > 0.135)
+PHI = P(tt UNTIL AND(goal, NOT avoid), > 0.135)
