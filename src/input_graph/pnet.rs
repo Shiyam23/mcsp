@@ -4,7 +4,7 @@ use std::{
     fmt::{Debug, Display},
     process::exit,
 };
-use log::error;
+use log::warn;
 use crate::input_graph;
 use super::{ApMap, GenericApMap, GenericMDP, InputGraph, MDP, Node::{Action, State}, Node};
 
@@ -100,8 +100,8 @@ impl PetriNet {
             .collect()
     }
 
-    fn succ_marking(marking: &Vec<usize>, transition: &Transition) -> Vec<usize> {
-        let mut succ_marking = marking.clone();
+    fn succ_marking(marking: &[usize], transition: &Transition) -> Vec<usize> {
+        let mut succ_marking = marking.to_owned();
         for state_id in &transition.pre {
             succ_marking[*state_id] -= 1;
         }
@@ -154,7 +154,7 @@ impl PetriNet {
 
 impl InputGraph for PetriNet {
     type S = Marking;
-    fn validate_graph(&self) {
+    fn validate_graph(&mut self) {
         let graph = self.to_mdp();
         let graph_markings: Vec<&Marking> = graph
             .node_weights()
@@ -163,19 +163,27 @@ impl InputGraph for PetriNet {
                 Action(_) => None
             })
             .collect();
-
         // Check whether the assigned markings are reached (is a node in the reachability graph)
-        for ap in self.ap_map.keys() {
-            for assigned_marking in &self.ap_map[ap] {
-                if !graph_markings.contains(&assigned_marking) {
-                    error!(
-                        "{:?} was assigned to \"{}\" but is never reached! Terminating ...",
-                        assigned_marking, ap
+        self.ap_map
+            .iter_mut()
+            .for_each(|(ap, v)| v.retain(|m| {
+                let retain: bool = graph_markings.contains(&m);
+                if !retain {
+                    warn!(
+                        "{:?} was assigned to \"{}\" but is never reached! Removing from \"{}\" ...",
+                        m, ap, ap
                     );
-                    exit(0);
                 }
+                retain
+            }));
+        self.ap_map.retain(|k,v| {
+            if v.is_empty() {
+                warn!(
+                    "\"{}\" is empty! Removing it from the list of all AP's", k
+                )
             }
-        }
+            !v.is_empty()
+        });
     }
 
     fn to_mdp(&self) -> MDP<Marking> {

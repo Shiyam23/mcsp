@@ -71,6 +71,7 @@ impl ParseImpl<PetriNet> for PetriNetParser {
         }
 
         let p_info: PetriNetInfo = initialize(petri_elements, petri_pairs);
+        validate(&p_info);
         let places: Vec<Place> = p_info
             .places
             .iter()
@@ -202,21 +203,27 @@ fn initialize(
     petri_elements: HashMap<String, Vec<String>>,
     petri_pairs: HashMap<String, Vec<(String, String)>>,
 ) -> PetriNetInfo {
-    let mut petri_net_info: PetriNetInfo = PetriNetInfo::default();
-    petri_net_info.places = petri_elements.get(PLACE_ID).unwrap().clone();
-    petri_net_info.transitions = petri_elements.get(TRANSITIONS_ID).unwrap().clone();
-    petri_net_info.input_arcs = petri_pairs.get(INPUT_ARCS_ID).unwrap().clone();
-    petri_net_info.output_arcs = petri_pairs.get(OUTPUT_ARCS_ID).unwrap().clone();
-    petri_net_info.initial_marking =
+    let places = petri_elements.get(PLACE_ID).unwrap().clone();
+    let transitions = petri_elements.get(TRANSITIONS_ID).unwrap().clone();
+    let input_arcs = petri_pairs.get(INPUT_ARCS_ID).unwrap().clone();
+    let output_arcs = petri_pairs.get(OUTPUT_ARCS_ID).unwrap().clone();
+    let initial_marking =
         match parse_list(petri_elements.get(INITIAL_MARKINGS_ID).unwrap()) {
             Ok(list) => list,
             Err(e) => panic!("{} is not a valid number! Terminating...", e.source),
         };
-    petri_net_info.lambdas = match parse_list(petri_elements.get(LAMBDAS_ID).unwrap()) {
+    let lambdas = match parse_list(petri_elements.get(LAMBDAS_ID).unwrap()) {
         Ok(list) => list,
         Err(e) => panic!("{} is not a valid decimal number! Terminating...", e.source),
     };
-    petri_net_info
+    PetriNetInfo {
+        places,
+        transitions,
+        input_arcs,
+        output_arcs,
+        initial_marking,
+        lambdas
+    }
 }
 
 fn parse_list<T>(list: &Vec<String>) -> Result<Vec<T>, ParseErrorWithSource<T>>

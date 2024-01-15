@@ -203,7 +203,12 @@ impl StatePhi for AP {
     }
 
     fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
-        pctl_info.ap_map[&self.value].clone()
+        if pctl_info.ap_map.contains_key(&self.value) {
+            pctl_info.ap_map[&self.value].clone()
+        } else {
+            error!("Formula contains an ap with the name '{}' but is not mapped to a marking", &self.value);
+            exit(0);
+        }
     }
 }
 

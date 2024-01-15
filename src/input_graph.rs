@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use petgraph::graph::DiGraph;
 
+#[allow(clippy::upper_case_acronyms)]
 pub type MDP<T> = DiGraph<Node<T>, f64>;
 pub type ApMap<T> = HashMap<String, HashSet<T>>;
 
@@ -54,13 +55,6 @@ impl<T> Node<T> where T: Clone {
             Node::Action(_) => false
         }
     }
-
-    pub fn get_inner_element(&self) -> Option<T> {
-        match self {
-            Node::State(e) => Some(e.clone()),
-            Node::Action(_) => None
-        }
-    }
 }
 
 pub trait ParseImpl<T: InputGraph> {
@@ -69,7 +63,7 @@ pub trait ParseImpl<T: InputGraph> {
 
 pub trait InputGraph {
     type S: State;
-    fn validate_graph(&self);
+    fn validate_graph(&mut self);
     fn to_mdp(&self) -> MDP<Self::S>;
     fn get_ap_map(&self) -> &ApMap<Self::S>;
     fn get_init_state(&self) -> &Self::S;

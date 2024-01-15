@@ -34,7 +34,7 @@ impl<T, P> ModelCheck<T, P> where T: InputGraph, P: ParseImpl<T>{
     pub fn start(args: Args) {
         info!("Parsing input file");
         let content = read_file(&args.input_file);
-        let input_graph: Box<T> = P::parse(&content);
+        let mut input_graph: Box<T> = P::parse(&content);
         let formula = parse_formula(args.logic_type, &content);
         input_graph.validate_graph();
         let mc: ModelCheckInfo<T::S> = ModelCheckInfo{
