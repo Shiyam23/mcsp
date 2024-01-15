@@ -67,9 +67,9 @@ impl PetriNet {
             .node_indices()
             .filter(|&m| {
                 if let State(m) = &graph[m] {
-                    return m.le(marking) && *m != *marking
+                    return StrictlyLessEqual::le(m,marking) && *m != *marking
                 }
-                return false
+                false
             })
             .collect();
         if node_indices.is_empty() {
@@ -195,3 +195,17 @@ impl input_graph::State for Marking {
     }
 }
 
+trait StrictlyLessEqual {
+    fn le(&self, other: &Self) -> bool;
+}
+
+impl StrictlyLessEqual for Marking {
+    fn le(&self, other: &Self) -> bool{
+        for index in 0..self.len() {
+            if self[index] > other[index] {
+                return false
+            }
+        }
+        true
+    }
+}
