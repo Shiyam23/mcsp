@@ -17,8 +17,8 @@ struct Args {
     #[arg(short, long)]
     input_file: String,
 
-    /// Max error used by the value iteration algorithm to compute the states satisfying an
-    /// 'UNTIL' pctl statement.
+    /// Max error used by the value iteration algorithm to compute the
+    /// 'UNTIL' pctl statement. Must be greater than 0
     #[arg(long("max-error"), default_value_t = 0.01)]
     max_error: f64,
 
