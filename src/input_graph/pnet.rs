@@ -198,16 +198,6 @@ impl InputGraph for PetriNet {
 impl GenericMDP for MDP<Marking> {}
 impl GenericApMap for ApMap<Marking> {}
 impl input_graph::State for Marking {
-    fn test(&self) {
-        todo!()
-    }
-}
-
-trait StrictlyLessEqual {
-    fn le(&self, other: &Self) -> bool;
-}
-
-impl StrictlyLessEqual for Marking {
     fn le(&self, other: &Self) -> bool{
         for index in 0..self.len() {
             if self[index] > other[index] {

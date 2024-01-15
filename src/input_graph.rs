@@ -70,7 +70,7 @@ pub trait InputGraph {
 }
 
 pub trait State: Debug + Clone + PartialEq {
-    fn test(&self);
+    fn le(&self, other: &Self) -> bool;
 }
 
 pub trait GenericInputGraph {}
