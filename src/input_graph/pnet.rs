@@ -67,7 +67,7 @@ impl PetriNet {
             .node_indices()
             .filter(|&m| {
                 if let State(m) = &graph[m] {
-                    return StrictlyLessEqual::le(m,marking) && *m != *marking
+                    return input_graph::State::le(m, marking) && *m != *marking
                 }
                 false
             })
