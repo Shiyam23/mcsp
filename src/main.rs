@@ -41,7 +41,7 @@ fn main() {
     info!("Starting MCSP...");
     match args.graph_type {
         InputGraphType::Petri => ModelCheck::<PetriNet, PetriNetParser>::start(args),
-        InputGraphType::DecisionPetri => {}
+        InputGraphType::DecisionPetri => todo!()
     };
 }
 
