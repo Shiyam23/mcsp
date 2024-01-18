@@ -1,6 +1,6 @@
 use std::process::exit;
 use std::str::FromStr;
-use log::error;
+use log::{error, warn};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
@@ -8,6 +8,7 @@ use crate::input_graph::{ApMap, ParseImpl};
 use crate::input_graph::pnet::{Marking, PetriNet, Place, Transition};
 use crate::utils::common::ParseOrQuit;
 
+const PLACES_ID: &str = "P";
 const GRAPH_ID: &str = "G";
 const INITIAL_MARKINGS_ID: &str = "M";
 const LAMBDAS_ID: &str = "L";
@@ -24,7 +25,7 @@ impl ParseImpl<PetriNet> for PetriNetParser {
         let pairs = InputParser::parse(Rule::Main, content).unwrap();
         let initial_marking = parse_list::<usize>(&pairs.find_first_tagged(INITIAL_MARKINGS_ID).unwrap().into_inner());
         let lambdas = parse_list::<f64>(&pairs.find_first_tagged(LAMBDAS_ID).unwrap().into_inner());
-        let mut places_raw: Vec<&str> = Vec::new();
+        let all_places = pairs.find_first_tagged(PLACES_ID).unwrap().into_inner().map(|pair| pair.as_str()).collect::<Vec<_>>();
         let mut transitions: Vec<Transition> = Vec::new();
         let graph_rule = pairs.find_first_tagged(GRAPH_ID).unwrap();
 
@@ -43,22 +44,28 @@ impl ParseImpl<PetriNet> for PetriNetParser {
                 .map(|rule_result| { rule_result.map(|rule| rule.into_inner())})
                 .collect::<Vec<_>>();
 
-            let mut input_p_indices : Vec<usize> = Vec::new();
-            let mut output_p_indices : Vec<usize> = Vec::new();
-            if let Some(input_rules) = both_place_rules[0].clone() {
-                for place_rule in input_rules.clone() {
-                    if !places_raw.contains(&place_rule.as_str()) {
-                        places_raw.push(place_rule.as_str());
+            let mut input_p_indices : Vec<(usize, usize)> = Vec::new();
+            let mut output_p_indices : Vec<(usize, usize)> = Vec::new();
+
+            for (rules_option, indices) in [
+                (&both_place_rules[0], &mut input_p_indices),
+                (&both_place_rules[1], &mut output_p_indices)
+            ] {
+                if let Some(rules) = rules_option {
+                    for place_rule in rules.clone() {
+                        let place_name = place_rule.clone().into_inner().find(|pair| pair.as_rule() == Rule::place_name).unwrap().as_str();
+                        if !all_places.contains(&place_name) {
+                            warn!("Place \"{}\" was not found in set P. Skipping it...", place_name);
+                            continue;
+                        }
+                        let token_result = place_rule.clone().into_inner().find(|pair| pair.as_rule() == Rule::tokens);
+                        let tokens: usize = match token_result {
+                            Some(tokens_rule) => {tokens_rule.as_str().parse().unwrap()}
+                            None => 1
+                        };
+                        let place_index = all_places.iter().position(|s| *s == place_name).unwrap();
+                        indices.push((place_index, tokens));
                     }
-                    input_p_indices.push(places_raw.iter().position(|s| *s == place_rule.as_str()).unwrap());
-                }
-            }
-            if let Some(output_rules) = both_place_rules[1].clone() {
-                for place_rule in output_rules.clone() {
-                    if !places_raw.contains(&place_rule.as_str()) {
-                        places_raw.push(place_rule.as_str());
-                    }
-                    output_p_indices.push(places_raw.iter().position(|s| *s == place_rule.as_str()).unwrap());
                 }
             }
             transitions.push(
@@ -73,14 +80,14 @@ impl ParseImpl<PetriNet> for PetriNetParser {
         }
 
         // If markings and detected places in transition assignments not equal, exit with error msg
-        if places_raw.len() != initial_marking.len() {
-            error!("{} places were detected but initial marking has {} places", places_raw.len(), initial_marking.len());
-            error!("Detected places: {:?}", places_raw);
+        if all_places.len() != initial_marking.len() {
+            error!("{} places were detected but initial marking has {} places", all_places.len(), initial_marking.len());
+            error!("Detected places: {:?}", all_places);
             exit(0);
         }
 
         // Transform place names to actual places
-        let places = places_raw
+        let places = all_places
             .into_iter()
             .enumerate()
             .map(|(index, name)| Place {
@@ -89,7 +96,6 @@ impl ParseImpl<PetriNet> for PetriNetParser {
                 token: initial_marking[index],
             })
             .collect::<Vec<Place>>();
-
 
         let ap_map_pairs = pairs.find_first_tagged(AP_MAP_ID).unwrap();
         let ap_map = transform_ap_map(ap_map_pairs);

@@ -26,8 +26,8 @@ impl Display for Place {
 pub struct Transition {
     pub transition_id: usize,
     pub name: String,
-    pub pre: Vec<usize>,
-    pub succ: Vec<usize>,
+    pub pre: Vec<(usize, usize)>,
+    pub succ: Vec<(usize, usize)>,
     pub fire_rate: f64,
 }
 
@@ -96,17 +96,17 @@ impl PetriNet {
     ) -> Vec<&'a Transition> {
         transitions
             .iter()
-            .filter(|t| t.pre.iter().all(|state_id| marking[*state_id] > 0))
+            .filter(|t| t.pre.iter().all(|(state_id, tokens) | marking[*state_id] >= *tokens))
             .collect()
     }
 
     fn succ_marking(marking: &[usize], transition: &Transition) -> Vec<usize> {
         let mut succ_marking = marking.to_owned();
-        for state_id in &transition.pre {
-            succ_marking[*state_id] -= 1;
+        for (state_id, tokens) in &transition.pre {
+            succ_marking[*state_id] -= tokens;
         }
-        for state_id in &transition.succ {
-            succ_marking[*state_id] += 1;
+        for (state_id, tokens) in &transition.succ {
+            succ_marking[*state_id] += tokens;
         }
         succ_marking
     }

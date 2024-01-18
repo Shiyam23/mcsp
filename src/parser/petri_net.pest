@@ -18,13 +18,17 @@ tuple = {lb ~ (element ~ separator)* ~ element ~ rb}
 pair_set = {lc ~ (pair ~ separator)* ~ pair ~ rc}
 element_set = _{lc ~ (element ~ separator)* ~ element ~ rc}
 
+all_places = {element_set}
 graph = {lc ~ (t_assign ~ separator)* ~ t_assign ~ rc}
 t_assign = {(input_p ~ arrow)? ~ transition ~ (arrow ~ output_p)?}
 input_p = {place_set}
 transition = {name}
 output_p = {place_set}
 place_set = _{lc ~ (place ~ separator)* ~ place ~ rc}
-place = {name}
+place = {place_name ~ tokens_wrapper?}
+place_name = {name}
+tokens_wrapper = _{"(" ~ tokens ~ ")"}
+tokens = {ASCII_DIGIT+}
 name = _{(ASCII_ALPHA|ASCII_DIGIT)+}
 
 // Elements specifically for model checking
@@ -36,6 +40,7 @@ AP = {"AP" ~ eq ~ AP_items}
 
 // Petri net
 petri_net = _{
+	"P" ~ eq ~ #P = all_places ~
     "G" ~ eq ~ #G = graph ~
     "M" ~ eq ~ #M = tuple ~
     "L" ~ eq ~ #L = tuple
