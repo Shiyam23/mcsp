@@ -9,14 +9,23 @@ rb = _{")"}
 rc = _{"}"}
 separator = _{","}
 ap = @{ASCII_ALPHA+}
-comp = {"<=" | "<" | ">=" | ">"}
+arrow = _{"->"}
 
 // Petri net elements
 element = {(ASCII_ALPHA|float|ASCII_DIGIT)+}
 pair = {lb ~ element ~ separator ~  element ~ rb}
 tuple = {lb ~ (element ~ separator)* ~ element ~ rb}
 pair_set = {lc ~ (pair ~ separator)* ~ pair ~ rc}
-element_set = {lc ~ (element ~ separator)* ~ element ~ rc}
+element_set = _{lc ~ (element ~ separator)* ~ element ~ rc}
+
+graph = {lc ~ (t_assign ~ separator)* ~ t_assign ~ rc}
+t_assign = {(input_p ~ arrow)? ~ transition ~ (arrow ~ output_p)?}
+input_p = {place_set}
+transition = {name}
+output_p = {place_set}
+place_set = _{lc ~ (place ~ separator)* ~ place ~ rc}
+place = {name}
+name = _{(ASCII_ALPHA|ASCII_DIGIT)+}
 
 // Elements specifically for model checking
 marking = {lb ~ (int ~ separator)* ~ int ~ rb}
@@ -27,10 +36,7 @@ AP = {"AP" ~ eq ~ AP_items}
 
 // Petri net
 petri_net = _{
-    "P" ~ eq ~ #P = element_set ~
-	"T" ~ eq ~ #T = element_set ~
-    "I" ~ eq ~ #I = pair_set ~
-    "O" ~ eq ~ #O = pair_set ~
+    "G" ~ eq ~ #G = graph ~
     "M" ~ eq ~ #M = tuple ~
     "L" ~ eq ~ #L = tuple
 }

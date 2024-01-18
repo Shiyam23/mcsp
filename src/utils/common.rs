@@ -57,12 +57,3 @@ impl ParseOrQuit for &str {
         }
     }
 }
-
-pub struct ParseErrorWithSource<T>
-    where
-        T: FromStr,
-{
-    pub source: String,
-    #[allow(dead_code)]
-    pub error: T::Err,
-}
