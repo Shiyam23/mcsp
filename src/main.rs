@@ -12,7 +12,7 @@ use crate::input_graph::pnet::PetriNet;
 use crate::parser::petri_net_parser::PetriNetParser;
 
 #[derive(Parser)]
-struct Args {
+pub struct Args {
     /// Path of the input file
     #[arg(short, long)]
     input_file: String,

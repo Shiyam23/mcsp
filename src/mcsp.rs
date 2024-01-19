@@ -92,6 +92,4 @@ impl<T, P> ModelCheck<T, P> where T: InputGraph, P: ParseImpl<T>{
         }
         normalized_ap_map
     }
-
-
 }
