@@ -32,11 +32,16 @@ pub struct ModelCheck<T: InputGraph, P: ParseImpl<T>> {
 impl<T, P> ModelCheck<T, P> where T: InputGraph, P: ParseImpl<T>{
     //noinspection RsTraitObligations
     pub fn start(args: Args) {
-        info!("Parsing input file");
+        info!("Parsing input petri net");
         let content = read_file(&args.input_file);
         let mut input_graph: Box<T> = P::parse(&content);
-        let formula = parse_formula(args.logic_type, &content);
+        info!("Petri net parsed successfully");
+        info!("Validating petri net...");
         input_graph.validate_graph();
+        info!("Petri net has been validated successfully");
+        info!("Parsing formula...");
+        let formula = parse_formula(args.logic_type, &content);
+        info!("Formula parsed successfully");
         let mc: ModelCheckInfo<T::S> = ModelCheckInfo{
             reach_graph: input_graph.to_mdp(),
             ap_map: input_graph.get_ap_map(),
@@ -62,6 +67,7 @@ impl<T, P> ModelCheck<T, P> where T: InputGraph, P: ParseImpl<T>{
             max_error: mc_info.max_error
         };
 
+        info!("Evaluating formula...");
         let markings = mc_info.formula.evaluate(&pctl_info);
 
         // Print all markings satisfying the pctl statement

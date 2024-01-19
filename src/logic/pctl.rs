@@ -206,7 +206,7 @@ impl StatePhi for AP {
         if pctl_info.ap_map.contains_key(&self.value) {
             pctl_info.ap_map[&self.value].clone()
         } else {
-            error!("Formula contains an ap with the name '{}' but is not mapped to a marking", &self.value);
+            error!("Formula contains an ap with the name \"{}\" but is not mapped to a marking", &self.value);
             exit(0);
         }
     }
