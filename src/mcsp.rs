@@ -4,6 +4,7 @@ use std::{
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use log::info;
+use petgraph::dot::Dot;
 use petgraph::graph::{NodeIndex};
 use crate::{Args};
 use crate::input_graph::{ApMap, InputGraph, MDP, Node, ParseImpl};
@@ -37,13 +38,21 @@ impl<T, P> ModelCheck<T, P> where T: InputGraph, P: ParseImpl<T>{
         let mut input_graph: Box<T> = P::parse(&content);
         info!("Petri net parsed successfully");
         info!("Validating petri net...");
-        input_graph.validate_graph();
+        let reach_graph = input_graph.to_mdp(args.precision_digits);
+        input_graph.validate_graph(&reach_graph);
         info!("Petri net has been validated successfully");
+
+        // Show graph if user requests
+        if args.show_graph {
+            info!("Dot graph as requested...");
+            println!("{:?}", Dot::new(&reach_graph));
+        }
+
         info!("Parsing formula...");
         let formula = parse_formula(args.logic_type, &content);
         info!("Formula parsed successfully");
         let mc: ModelCheckInfo<T::S> = ModelCheckInfo{
-            reach_graph: input_graph.to_mdp(),
+            reach_graph,
             ap_map: input_graph.get_ap_map(),
             formula,
             max_error: args.max_error,

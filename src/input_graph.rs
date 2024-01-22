@@ -1,4 +1,5 @@
 pub mod pnet;
+pub mod dpnet;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
@@ -63,8 +64,8 @@ pub trait ParseImpl<T: InputGraph> {
 
 pub trait InputGraph {
     type S: State;
-    fn validate_graph(&mut self);
-    fn to_mdp(&self) -> MDP<Self::S>;
+    fn validate_graph(&mut self, graph: &MDP<Self::S>);
+    fn to_mdp(&self, precision: i32) -> MDP<Self::S>;
     fn get_ap_map(&self) -> &ApMap<Self::S>;
     fn get_init_state(&self) -> &Self::S;
 }

@@ -7,8 +7,10 @@ mod parser;
 use crate::mcsp::ModelCheck;
 use clap::Parser;
 use log::info;
+use crate::input_graph::dpnet::DPetriNet;
 use crate::input_graph::InputGraphType;
 use crate::input_graph::pnet::PetriNet;
+use crate::parser::dpn_parser::DPetriNetParser;
 use crate::parser::petri_net_parser::PetriNetParser;
 
 #[derive(Parser)]
@@ -26,7 +28,14 @@ pub struct Args {
     graph_type: InputGraphType,
 
     #[arg(short, long, default_value_t, value_enum)]
-    logic_type: LogicType
+    logic_type: LogicType,
+
+    #[arg(short, long("precision-digits"), default_value_t = 2)]
+    precision_digits: i32,
+
+    #[arg(short, long("show-graph"), default_value_t = false)]
+    show_graph: bool
+
 }
 #[derive(clap::ValueEnum, Clone, Default)]
 pub enum LogicType {
@@ -41,7 +50,7 @@ fn main() {
     info!("Starting MCSP...");
     match args.graph_type {
         InputGraphType::Petri => ModelCheck::<PetriNet, PetriNetParser>::start(args),
-        InputGraphType::DecisionPetri => todo!()
+        InputGraphType::DecisionPetri => ModelCheck::<DPetriNet, DPetriNetParser>::start(args)
     };
 }
 

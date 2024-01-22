@@ -44,6 +44,7 @@ impl ParseImpl<PetriNet> for PetriNetParser {
                 .map(|rule_result| { rule_result.map(|rule| rule.into_inner())})
                 .collect::<Vec<_>>();
 
+            let name: String = t_assign.into_inner().find(|r| r.as_rule() == Rule::transition).unwrap().as_str().to_owned();
             let mut input_p_indices : Vec<(usize, usize)> = Vec::new();
             let mut output_p_indices : Vec<(usize, usize)> = Vec::new();
 
@@ -71,7 +72,7 @@ impl ParseImpl<PetriNet> for PetriNetParser {
             transitions.push(
                 Transition {
                     transition_id: t_index,
-                    name: "".to_string(),
+                    name,
                     pre: input_p_indices,
                     succ: output_p_indices,
                     fire_rate: lambdas[t_index],

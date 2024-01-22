@@ -6,7 +6,8 @@ use std::{
 };
 use log::warn;
 use crate::input_graph;
-use super::{ApMap, GenericApMap, GenericMDP, InputGraph, MDP, Node::{Action, State}, Node};
+use crate::utils::common::powerset;
+use super::{ApMap, InputGraph, MDP, Node::{Action, State}, Node};
 
 pub type Marking = Vec<usize>;
 
@@ -23,6 +24,7 @@ impl Display for Place {
     }
 }
 
+#[derive(PartialEq)]
 pub struct Transition {
     pub transition_id: usize,
     pub name: String,
@@ -49,14 +51,15 @@ impl Debug for Transition {
     }
 }
 
-pub struct PetriNet {
+pub struct DPetriNet {
     pub places: Vec<Place>,
     pub transitions: Vec<Transition>,
+    pub c_transitions: Vec<Transition>,
     pub initial_marking: Marking,
     pub ap_map: ApMap<Marking>
 }
 
-impl PetriNet {
+impl DPetriNet {
     fn check_infinite_graph<'a>(
         graph: &'a MDP<Marking>,
         marking: &Marking,
@@ -123,37 +126,54 @@ impl PetriNet {
                 .node_indices()
                 .find(|&n| reach_graph[n] == State(marking.clone()))
                 .unwrap();
+            let enabled_transitions = DPetriNet::get_active_transitions(&marking, &self.transitions);
+            let deactivated_transitions: Vec<&Transition> = self.c_transitions
+                .iter()
+                .filter(|t| enabled_transitions.contains(t))
+                .collect();
+            for deactivated_transition_set in powerset(&deactivated_transitions) {
+                // Add pseudo action
+                let pseudo_action: Node<_> = Action(fmt(&deactivated_transition_set));
+                let action_index = reach_graph.add_node(pseudo_action);
+                reach_graph.add_edge(pre_index, action_index, 1.0);
+                let new_activated_transitions: Vec<&&Transition> = enabled_transitions
+                 .iter()
+                 .filter(|t| !deactivated_transition_set.contains(t))
+                 .collect();
 
-            // Add pseudo action
-            let pseudo_action: Node<_> = Action("".into());
-            let action_index = reach_graph.add_node(pseudo_action);
-            reach_graph.add_edge(pre_index, action_index, 1.0);
-            // Add transitions
-            let active_transitions = PetriNet::get_active_transitions(&marking, &self.transitions);
-            let sum_fire_rates: f64 = active_transitions.iter().map(|t| t.fire_rate).sum();
-            for active_transition in active_transitions {
-                let succ_marking = PetriNet::succ_marking(&marking, active_transition);
-                let succ_index;
-                if let Some(index) = reach_graph
-                    .node_indices()
-                    .find(|&n| reach_graph[n] == State(succ_marking.clone()))
-                {
-                    succ_index = index;
-                } else {
-                    succ_index = reach_graph.add_node(State(succ_marking.clone()));
-                    upcoming_markings.push_back(succ_marking);
+                // Add transitions
+                let sum_fire_rates: f64 = new_activated_transitions.iter().map(|t| t.fire_rate).sum();
+
+                // If there are no activated transitions, then add one edge back to marking with probabilty 1.0
+                if new_activated_transitions.is_empty() {
+                 reach_graph.add_edge(action_index, pre_index, 1.0);
                 }
-                PetriNet::check_infinite_graph(&reach_graph, &marking, &pre_index);
-                let mut probability = active_transition.fire_rate / sum_fire_rates;
-                probability = (probability * 10.0_f64.powi(precision)).round() / 10.0_f64.powi(precision);
-                reach_graph.add_edge(action_index, succ_index, probability);
+
+                // Otherwise iterate through all activated transitions
+                for activated_transition in new_activated_transitions {
+                    let succ_marking = DPetriNet::succ_marking(&marking, activated_transition);
+                    let succ_index;
+                    if let Some(index) = reach_graph
+                     .node_indices()
+                     .find(|&n| reach_graph[n] == State(succ_marking.clone()))
+                    {
+                     succ_index = index;
+                    } else {
+                     succ_index = reach_graph.add_node(State(succ_marking.clone()));
+                     upcoming_markings.push_back(succ_marking);
+                    }
+                    DPetriNet::check_infinite_graph(&reach_graph, &marking, &pre_index);
+                    let mut probability = activated_transition.fire_rate / sum_fire_rates;
+                    probability = (probability * 10.0_f64.powi(precision)).round() / 10.0_f64.powi(precision);
+                    reach_graph.add_edge(action_index, succ_index, probability);
+                }
             }
         }
         reach_graph
     }
 }
 
-impl InputGraph for PetriNet {
+impl InputGraph for DPetriNet {
     type S = Marking;
     fn validate_graph(&mut self, graph: &MDP<Marking>) {
         let graph_markings: Vec<&Marking> = graph
@@ -195,15 +215,15 @@ impl InputGraph for PetriNet {
     fn get_init_state(&self) -> &Marking { &self.initial_marking }
 }
 
-impl GenericMDP for MDP<Marking> {}
-impl GenericApMap for ApMap<Marking> {}
-impl input_graph::State for Marking {
-    fn le(&self, other: &Self) -> bool{
-        for index in 0..self.len() {
-            if self[index] > other[index] {
-                return false
-            }
-        }
-        true
+fn fmt(list: &[&&Transition]) -> String {
+    let mut list_name: String = "{".into();
+    if let Some(item) = list.first() {
+        list_name.push_str(&item.name);
     }
+    for item in list.iter().skip(1) {
+        list_name.push_str(", ");
+        list_name.push_str(&item.name);
+    }
+    list_name.push('}');
+    list_name.to_owned()
 }

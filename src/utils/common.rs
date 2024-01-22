@@ -57,3 +57,19 @@ impl ParseOrQuit for &str {
         }
     }
 }
+
+// A utility function to determine the power set of a set (here given as a Vec)
+// This code fragment was taken from StackOverflow. My special thanks goes to erip!
+// Title: powerset
+// Author: erip (https://stackoverflow.com/users/2883245/erip)
+// Date: Nov 21, 2016
+// Type: Source Code
+// Availability: https://stackoverflow.com/a/40719103/16463801
+// License: https://creativecommons.org/licenses/by-sa/3.0/
+pub fn powerset<T>(s: &[T]) -> Vec<Vec<&T>>{
+    (0..2usize.pow(s.len() as u32)).map(|i| {
+        s.iter().enumerate().filter(|&(t, _)| (i >> t) % 2 == 1)
+            .map(|(_, element)| element)
+            .collect()
+    }).collect()
+}

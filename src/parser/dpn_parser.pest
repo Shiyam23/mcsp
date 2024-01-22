@@ -22,6 +22,7 @@ graph = {lc ~ (t_assign ~ separator)* ~ t_assign ~ rc}
 t_assign = {(input_p ~ arrow)? ~ transition ~ (arrow ~ output_p)?}
 input_p = {place_set}
 transition = {name}
+c_trans = {element_set}
 output_p = {place_set}
 place_set = _{lc ~ (place ~ separator)* ~ place ~ rc}
 place = {place_name ~ tokens_wrapper?}
@@ -41,6 +42,7 @@ AP = {"AP" ~ eq ~ AP_items}
 petri_net = _{
 	"P" ~ eq ~ #P = all_places ~
     "G" ~ eq ~ #G = graph ~
+    "C" ~ eq ~ #C = c_trans ~
     "M" ~ eq ~ #M = tuple ~
     "L" ~ eq ~ #L = tuple
 }
