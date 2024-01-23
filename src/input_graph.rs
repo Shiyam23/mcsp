@@ -75,6 +75,5 @@ pub trait State: Debug + Clone + PartialEq {
 }
 
 pub trait GenericInputGraph {}
-
 pub trait GenericMDP {}
 pub trait GenericApMap {}

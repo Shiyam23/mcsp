@@ -31,6 +31,18 @@ impl PctlImpl {
                     right_phi: right_rule,
                 })
             }
+            Rule::Phi_or => {
+                let left_rule = Self::parse_state(inner_rules.first().unwrap());
+                let right_rule = Self::parse_state(inner_rules.get(1).unwrap());
+                Box::new(NotPhi {
+                    phi: Box::new(
+                        AndPhi {
+                            left_phi: Box::new(NotPhi{phi: left_rule}),
+                            right_phi: Box::new(NotPhi{phi: right_rule}),
+                        }
+                    )
+                })
+            }
             Rule::Phi_not => {
                 let inner_phi = Self::parse_state(inner_rules.first().unwrap());
                 Box::new(NotPhi { phi: inner_phi })
@@ -39,6 +51,7 @@ impl PctlImpl {
                 value: pair.as_str().into(),
             }),
             Rule::r#true => Box::new(True {}),
+            Rule::r#false => Box::new(NotPhi{phi: Box::new(True {})}),
             Rule::prob => {
                 let inner_phi = Self::parse_path(inner_rules.first().unwrap());
                 let comp_char: &str = inner_rules.get(1).unwrap().as_str();
@@ -68,6 +81,38 @@ impl PctlImpl {
                     }
                 }
             }
+            Rule::prob_alw => {
+                let inner_state_phi = Self::parse_state(inner_rules.first().unwrap());
+                let comp_char: &str = inner_rules.get(1).unwrap().as_str();
+                let flipped_comp: Comp = match comp_char {
+                    "<" => Comp::Greater,
+                    "<=" => Comp::Geq,
+                    ">" => Comp::Less,
+                    ">=" => Comp::Leq,
+                    _ => {
+                        error!(
+                        "Syntax error! \"{}\" is not a valid comparison character. Terminating...",
+                        comp_char
+                    );
+                        exit(0);
+                    }
+                };
+                let prob_str: &str = inner_rules.get(2).unwrap().as_str();
+                match prob_str.parse::<f64>() {
+                    Ok(prob) => Box::new(Prob {
+                        phi: Box::new(Until {
+                            prev: Box::new(True{}),
+                            until: Box::new(NotPhi{phi: inner_state_phi})
+                        }),
+                        comp: flipped_comp,
+                        probability: 1.0 - prob,
+                    }),
+                    Err(_) => {
+                        error!("\"{}\" is not a valid float! Terminating...", prob_str);
+                        exit(0);
+                    }
+                }
+            }
             _ => panic!("Rule is invalid or should have been processed by parent!"),
         }
     }
@@ -87,7 +132,14 @@ impl PctlImpl {
                     until: right_phi,
                 })
             }
-            _ => panic!(),
+            Rule::phi_ev => {
+                let inner_phi = Self::parse_state(inner_rules.first().unwrap());
+                Box::new(Until {
+                    prev: Box::new(True{}),
+                    until: inner_phi
+                })
+            }
+            _ => unreachable!(),
         }
     }
 }
