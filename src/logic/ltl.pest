@@ -1,0 +1,35 @@
+WHITESPACE = _{" "|"\t"|NEWLINE}
+lb = _{"("}
+rb = _{")"}
+separator = _{","}
+comp = {"<=" | "<" | ">=" | ">"}
+float = {ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+}
+ap = @{ASCII_ALPHA+}
+
+// ltl related elements
+phi_id = {"phi"}
+Phi_id = {"Phi"}
+true = {"tt"}
+false = {"ff"}
+and_op = _{"&"}
+or_op = _{"|"}
+not_op = _{"!"}
+alw_op = _{"G"}
+ev_op = _{"F"}
+next_op = _{"X"}
+until_op = _{"U"}
+release_op = _{"R"}
+
+// Expressions
+Phi_alw = {alw_op ~ Phi}
+Phi_and = {lb ~ Phi ~ rb ~ and_op ~ lb ~ Phi ~ rb}
+Phi_or = {lb ~ Phi ~ rb ~ or_op ~ lb ~ Phi ~ rb}
+Phi_not = {not_op ~ Phi}
+Phi_next = {next_op ~ Phi}
+Phi_until = {lb ~ Phi ~ rb ~ until_op ~ lb ~ Phi ~ rb}
+Phi_release = {lb ~ Phi ~ rb ~ release_op ~ lb ~ Phi ~ rb}
+Phi_ev = {ev_op ~ Phi}
+Phi = _{true | false | Phi_and | Phi_or | Phi_not | Phi_until | Phi_release | Phi_next | Phi_ev | Phi_alw | "(" ~ Phi ~ ")" | ap}
+prefix = _{"PHI" ~ "="}
+
+Main = _{SOI ~ prefix ~ Phi ~ EOI}

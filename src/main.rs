@@ -1,17 +1,17 @@
-mod mcsp;
-mod utils;
-mod logic;
 mod input_graph;
+mod logic;
+mod mcsp;
 mod parser;
+mod utils;
 
-use crate::mcsp::ModelCheck;
-use clap::Parser;
-use log::info;
 use crate::input_graph::dpnet::DPetriNet;
-use crate::input_graph::InputGraphType;
 use crate::input_graph::pnet::PetriNet;
+use crate::input_graph::InputGraphType;
+use crate::mcsp::ModelCheck;
 use crate::parser::dpn_parser::DPetriNetParser;
 use crate::parser::petri_net_parser::PetriNetParser;
+use clap::Parser;
+use log::info;
 
 #[derive(Parser)]
 pub struct Args {
@@ -34,14 +34,13 @@ pub struct Args {
     precision_digits: i32,
 
     #[arg(short, long("show-graph"), default_value_t = false)]
-    show_graph: bool
-
+    show_graph: bool,
 }
 #[derive(clap::ValueEnum, Clone, Default)]
 pub enum LogicType {
     #[default]
     Pctl,
-    LTL
+    LTL,
 }
 
 fn main() {
@@ -50,7 +49,7 @@ fn main() {
     info!("Starting MCSP...");
     match args.graph_type {
         InputGraphType::Petri => ModelCheck::<PetriNet, PetriNetParser>::start(args),
-        InputGraphType::DecisionPetri => ModelCheck::<DPetriNet, DPetriNetParser>::start(args)
+        InputGraphType::DecisionPetri => ModelCheck::<DPetriNet, DPetriNetParser>::start(args),
     };
 }
 
