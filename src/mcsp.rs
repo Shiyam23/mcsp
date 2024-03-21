@@ -33,7 +33,6 @@ where
     T: InputGraph,
     P: ParseImpl<T>,
 {
-    //noinspection RsTraitObligations
     pub fn start(args: Args) {
         info!("Parsing input petri net");
         let content = read_file(&args.input_file);

@@ -1,17 +1,17 @@
-use std::collections::{HashMap, HashSet};
-use std::fmt::Display;
-use std::process::exit;
-use log::error;
-use pest::iterators::{Pair};
-use pest::Parser;
-use pest_derive::Parser;
-use petgraph::graph::{Edges, NodeIndex};
-use petgraph::{Incoming, Outgoing};
-use petgraph::visit::EdgeRef;
+use crate::input_graph::{Node, MDP};
 use crate::logic::{Formula, LogicImpl};
 use crate::mcsp::PctlInfo;
 use crate::utils::common::Comp;
-use crate::input_graph::{MDP, Node};
+use log::error;
+use pest::iterators::Pair;
+use pest::Parser;
+use pest_derive::Parser;
+use petgraph::graph::{Edges, NodeIndex};
+use petgraph::visit::EdgeRef;
+use petgraph::{Incoming, Outgoing};
+use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
+use std::process::exit;
 
 #[derive(Parser)]
 #[grammar = "logic/pctl.pest"]
@@ -20,7 +20,7 @@ struct PctlPestParser;
 pub struct PctlImpl;
 
 impl PctlImpl {
-    fn parse_state(pair: &Pair<Rule>) -> Box<dyn StatePhi>{
+    fn parse_state(pair: &Pair<Rule>) -> Box<dyn StatePhi> {
         let inner_rules = pair.clone().into_inner().collect::<Vec<Pair<Rule>>>();
         match pair.as_rule() {
             Rule::Phi_and => {
@@ -35,12 +35,10 @@ impl PctlImpl {
                 let left_rule = Self::parse_state(inner_rules.first().unwrap());
                 let right_rule = Self::parse_state(inner_rules.get(1).unwrap());
                 Box::new(NotPhi {
-                    phi: Box::new(
-                        AndPhi {
-                            left_phi: Box::new(NotPhi{phi: left_rule}),
-                            right_phi: Box::new(NotPhi{phi: right_rule}),
-                        }
-                    )
+                    phi: Box::new(AndPhi {
+                        left_phi: Box::new(NotPhi { phi: left_rule }),
+                        right_phi: Box::new(NotPhi { phi: right_rule }),
+                    }),
                 })
             }
             Rule::Phi_not => {
@@ -51,7 +49,9 @@ impl PctlImpl {
                 value: pair.as_str().into(),
             }),
             Rule::r#true => Box::new(True {}),
-            Rule::r#false => Box::new(NotPhi{phi: Box::new(True {})}),
+            Rule::r#false => Box::new(NotPhi {
+                phi: Box::new(True {}),
+            }),
             Rule::prob => {
                 let inner_phi = Self::parse_path(inner_rules.first().unwrap());
                 let comp_char: &str = inner_rules.get(1).unwrap().as_str();
@@ -101,8 +101,10 @@ impl PctlImpl {
                 match prob_str.parse::<f64>() {
                     Ok(prob) => Box::new(Prob {
                         phi: Box::new(Until {
-                            prev: Box::new(True{}),
-                            until: Box::new(NotPhi{phi: inner_state_phi})
+                            prev: Box::new(True {}),
+                            until: Box::new(NotPhi {
+                                phi: inner_state_phi,
+                            }),
                         }),
                         comp: flipped_comp,
                         probability: 1.0 - prob,
@@ -117,7 +119,7 @@ impl PctlImpl {
         }
     }
 
-    fn parse_path(pair: &Pair<Rule>) -> Box<dyn PathPhi>{
+    fn parse_path(pair: &Pair<Rule>) -> Box<dyn PathPhi> {
         let inner_rules = pair.clone().into_inner().collect::<Vec<Pair<Rule>>>();
         match pair.as_rule() {
             Rule::phi_next => {
@@ -135,8 +137,8 @@ impl PctlImpl {
             Rule::phi_ev => {
                 let inner_phi = Self::parse_state(inner_rules.first().unwrap());
                 Box::new(Until {
-                    prev: Box::new(True{}),
-                    until: inner_phi
+                    prev: Box::new(True {}),
+                    until: inner_phi,
                 })
             }
             _ => unreachable!(),
@@ -145,12 +147,14 @@ impl PctlImpl {
 }
 
 impl LogicImpl for PctlImpl {
-    fn parse(&self, content: &str) -> Box<dyn Formula>{
+    fn parse(&self, content: &str) -> Box<dyn Formula> {
         let phi_content = match self.find_formula(content) {
             None => panic!("Formula must contain 'PHI' exactly once!"),
-            Some(c) => c
+            Some(c) => c,
         };
-        let pairs: Vec<_> = PctlPestParser::parse(Rule::Main, &phi_content).unwrap().collect();
+        let pairs: Vec<_> = PctlPestParser::parse(Rule::Main, &phi_content)
+            .unwrap()
+            .collect();
         let pair = pairs.first().unwrap();
         let state_phi: Box<dyn StatePhi> = Self::parse_state(pair);
         Box::new(PctlFormula(state_phi))
@@ -162,6 +166,10 @@ struct PctlFormula(Box<dyn StatePhi>);
 impl Formula for PctlFormula {
     fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
         self.0.evaluate(pctl_info)
+    }
+
+    fn fmt(&self) -> String {
+        StatePhi::fmt(self.0.as_ref())
     }
 }
 
@@ -178,12 +186,7 @@ impl Display for dyn StatePhi {
 
 pub trait PathPhi {
     fn fmt(&self) -> String;
-    fn evaluate(
-        &self,
-        pctl_info: &PctlInfo,
-        comp: &Comp,
-        prob_bound: f64,
-    ) -> HashSet<NodeIndex>;
+    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex>;
 }
 
 impl Display for dyn PathPhi {
@@ -240,8 +243,7 @@ impl StatePhi for Prob {
     }
 
     fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
-        self.phi
-            .evaluate(pctl_info, &self.comp, self.probability)
+        self.phi.evaluate(pctl_info, &self.comp, self.probability)
     }
 }
 
@@ -258,7 +260,10 @@ impl StatePhi for AP {
         if pctl_info.ap_map.contains_key(&self.value) {
             pctl_info.ap_map[&self.value].clone()
         } else {
-            error!("Formula contains an ap with the name \"{}\" but is not mapped to a marking", &self.value);
+            error!(
+                "Formula contains an ap with the name \"{}\" but is not mapped to a marking",
+                &self.value
+            );
             exit(0);
         }
     }
@@ -284,7 +289,6 @@ impl StatePhi for AndPhi {
     }
 }
 
-
 pub struct Next {
     pub phi: Box<dyn StatePhi>,
 }
@@ -299,12 +303,11 @@ impl PathPhi for Next {
         format!("◯ ({})", self.phi)
     }
 
-    fn evaluate<>(
+    fn evaluate(
         &self,
         pctl_info: &PctlInfo,
         comp: &Comp,
-        #[allow(unused_variables)]
-        prob_bound: f64,
+        #[allow(unused_variables)] prob_bound: f64,
     ) -> HashSet<NodeIndex> {
         let graph = &pctl_info.reach_graph;
         let phi_node_indices = self.phi.evaluate(pctl_info);
@@ -313,7 +316,8 @@ impl PathPhi for Next {
         let mut action_prob: HashMap<NodeIndex, f64> = HashMap::new();
         let mut state_prob: HashMap<NodeIndex, f64> = HashMap::new();
         for phi_node_index in phi_node_indices {
-            let pre_actions = graph.neighbors_directed(phi_node_index, Incoming)
+            let pre_actions = graph
+                .neighbors_directed(phi_node_index, Incoming)
                 .collect::<Vec<NodeIndex>>();
             for pre_action in pre_actions {
                 let old_prob = action_prob.get(&pre_action).unwrap_or(&0.0);
@@ -330,16 +334,19 @@ impl PathPhi for Next {
         // Create a hashmap which maps all states to the max or min (depending on comp) probability
         // of satisfying phi
         for action in action_prob.keys() {
-            let pre_states = graph.neighbors_directed(*action, Incoming)
+            let pre_states = graph
+                .neighbors_directed(*action, Incoming)
                 .collect::<Vec<NodeIndex>>();
             for pre_state in pre_states {
                 let old_prob = state_prob.get(&pre_state);
                 let new_prob = match old_prob {
                     None => action_prob[action],
-                    Some(p) => if comp.is_upper_bound() {
-                        p.max(action_prob[action])
-                    } else {
-                        p.min(action_prob[action])
+                    Some(p) => {
+                        if comp.is_upper_bound() {
+                            p.max(action_prob[action])
+                        } else {
+                            p.min(action_prob[action])
+                        }
                     }
                 };
                 state_prob.insert(pre_state, new_prob);
@@ -424,12 +431,7 @@ impl PathPhi for Until {
         format!("({}) U ({})", self.prev, self.until)
     }
 
-    fn evaluate(
-        &self,
-        pctl_info: &PctlInfo,
-        comp: &Comp,
-        prob_bound: f64,
-    ) -> HashSet<NodeIndex> {
+    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex> {
         let all: HashSet<_> = pctl_info
             .reach_graph
             .node_indices()
@@ -489,10 +491,12 @@ impl PathPhi for Until {
                         .sum();
                     prob = match prob {
                         None => Some(prob_to_sq + prob_to_s1),
-                        Some(p) => if comp.is_upper_bound() {
-                            Some(p.max(prob_to_sq + prob_to_s1))
-                        } else {
-                            Some(p.min(prob_to_sq + prob_to_s1))
+                        Some(p) => {
+                            if comp.is_upper_bound() {
+                                Some(p.max(prob_to_sq + prob_to_s1))
+                            } else {
+                                Some(p.min(prob_to_sq + prob_to_s1))
+                            }
                         }
                     }
                 }

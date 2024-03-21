@@ -1,12 +1,16 @@
+use super::{
+    ApMap, GenericApMap, GenericMDP, InputGraph, Node,
+    Node::{Action, State},
+    MDP,
+};
+use crate::input_graph;
+use log::warn;
 use petgraph::{algo::dijkstra, graph::NodeIndex, prelude::DiGraph};
 use std::{
     collections::VecDeque,
     fmt::{Debug, Display},
     process::exit,
 };
-use log::warn;
-use crate::input_graph;
-use super::{ApMap, GenericApMap, GenericMDP, InputGraph, MDP, Node::{Action, State}, Node};
 
 pub type Marking = Vec<usize>;
 
@@ -53,7 +57,7 @@ pub struct PetriNet {
     pub places: Vec<Place>,
     pub transitions: Vec<Transition>,
     pub initial_marking: Marking,
-    pub ap_map: ApMap<Marking>
+    pub ap_map: ApMap<Marking>,
 }
 
 impl PetriNet {
@@ -67,7 +71,7 @@ impl PetriNet {
             .node_indices()
             .filter(|&m| {
                 if let State(m) = &graph[m] {
-                    return input_graph::State::le(m, marking) && *m != *marking
+                    return input_graph::State::le(m, marking) && *m != *marking;
                 }
                 false
             })
@@ -96,7 +100,11 @@ impl PetriNet {
     ) -> Vec<&'a Transition> {
         transitions
             .iter()
-            .filter(|t| t.pre.iter().all(|(state_id, tokens) | marking[*state_id] >= *tokens))
+            .filter(|t| {
+                t.pre
+                    .iter()
+                    .all(|(state_id, tokens)| marking[*state_id] >= *tokens)
+            })
             .collect()
     }
 
@@ -145,7 +153,8 @@ impl PetriNet {
                 }
                 PetriNet::check_infinite_graph(&reach_graph, &marking, &pre_index);
                 let mut probability = active_transition.fire_rate / sum_fire_rates;
-                probability = (probability * 10.0_f64.powi(precision)).round() / 10.0_f64.powi(precision);
+                probability =
+                    (probability * 10.0_f64.powi(precision)).round() / 10.0_f64.powi(precision);
                 reach_graph.add_edge(action_index, succ_index, probability);
             }
         }
@@ -160,7 +169,7 @@ impl InputGraph for PetriNet {
             .node_weights()
             .filter_map(|n| match n {
                 State(s) => Some(s),
-                Action(_) => None
+                Action(_) => None,
             })
             .collect();
         // Check whether the assigned markings are reached (is a node in the reachability graph)
@@ -176,11 +185,9 @@ impl InputGraph for PetriNet {
                 }
                 retain
             }));
-        self.ap_map.retain(|k,v| {
+        self.ap_map.retain(|k, v| {
             if v.is_empty() {
-                warn!(
-                    "\"{}\" is empty! Removing it from the list of all AP's", k
-                )
+                warn!("\"{}\" is empty! Removing it from the list of all AP's", k)
             }
             !v.is_empty()
         });
@@ -190,18 +197,22 @@ impl InputGraph for PetriNet {
         self.to_mdp(precision)
     }
 
-    fn get_ap_map(&self) -> &ApMap<Marking> { &self.ap_map }
+    fn get_ap_map(&self) -> &ApMap<Marking> {
+        &self.ap_map
+    }
 
-    fn get_init_state(&self) -> &Marking { &self.initial_marking }
+    fn get_init_state(&self) -> &Marking {
+        &self.initial_marking
+    }
 }
 
 impl GenericMDP for MDP<Marking> {}
 impl GenericApMap for ApMap<Marking> {}
 impl input_graph::State for Marking {
-    fn le(&self, other: &Self) -> bool{
+    fn le(&self, other: &Self) -> bool {
         for index in 0..self.len() {
             if self[index] > other[index] {
-                return false
+                return false;
             }
         }
         true
