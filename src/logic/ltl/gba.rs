@@ -8,21 +8,33 @@ use std::{
 };
 
 type ConjTransitions = HashSet<ConjTransition>;
+pub type SimpleTransitions = HashSet<SimpleTransition>;
 
-#[allow(dead_code)]
 pub struct GBA {
-    initial: HashSet<Conjuction>,
-    trans_f: HashMap<String, ConjTransitions>,
-    acc_transitions: HashMap<PhiOp, HashSet<(Conjuction, ConjTransition)>>,
+    pub initial: HashSet<String>,
+    pub trans_f: HashMap<String, SimpleTransitions>,
+    pub acc_transitions: HashMap<PhiOp, HashSet<(String, SimpleTransition)>>,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
-struct ConjTransition {
+pub struct ConjTransition {
     props: Alphabet,
     target: Conjuction,
 }
 
 impl Display for ConjTransition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} -> {}", self.props, self.target)
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Clone)]
+pub struct SimpleTransition {
+    pub props: Alphabet,
+    pub target: String,
+}
+
+impl Display for SimpleTransition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} -> {}", self.props, self.target)
     }
@@ -77,31 +89,91 @@ pub fn to_gba(vwaa: VWAA) -> GBA {
     }
 
     prune_transitions(&mut accept_t, &mut trans_f);
-    let simple_trans_f = prune_states(trans_f);
+    let rename_map = get_rename_map(trans_f.clone());
+    let renamed_trans_f = rename_trans_f(trans_f, &rename_map);
+    let renamed_initial = rename_initial(vwaa.initial, &rename_map);
+    let renamed_accept_t = rename_accept_t(accept_t, &rename_map);
 
     GBA {
-        initial: vwaa.initial,
-        trans_f: simple_trans_f,
-        acc_transitions: accept_t,
+        initial: renamed_initial,
+        trans_f: renamed_trans_f,
+        acc_transitions: renamed_accept_t,
     }
 }
 
-fn prune_states(
-    trans_f: HashMap<Conjuction, HashSet<ConjTransition>>,
-) -> HashMap<String, HashSet<ConjTransition>> {
-    let mut simple_trans_f: HashMap<String, ConjTransitions> =
+fn get_rename_map(trans_f: HashMap<Conjuction, ConjTransitions>) -> HashMap<Conjuction, String> {
+    let mut conj_to_index: HashMap<Conjuction, String> = HashMap::with_capacity(trans_f.len());
+    let mut half_simple_trans_f: HashMap<String, ConjTransitions> =
         HashMap::with_capacity(trans_f.len());
     let mut index = 1;
-    for transitions in trans_f.values() {
-        let item = simple_trans_f
-            .iter_mut()
-            .find(|(_, delta)| transitions == *delta);
-        if let None = item {
-            simple_trans_f.insert(index.to_string(), transitions.clone());
+    for (conj, transitions) in trans_f {
+        let redundant_state = half_simple_trans_f
+            .iter()
+            .find(|(_, delta)| transitions == **delta)
+            .map(|(state, _)| state);
+        if let Some(state) = redundant_state {
+            conj_to_index.insert(conj, state.to_string());
+        } else {
+            half_simple_trans_f.insert(index.to_string(), transitions);
+            conj_to_index.insert(conj, index.to_string());
             index = index + 1;
         }
     }
-    simple_trans_f
+
+    return conj_to_index;
+}
+
+fn rename_trans_f(
+    trans_f: HashMap<Conjuction, ConjTransitions>,
+    rename_map: &HashMap<Conjuction, String>,
+) -> HashMap<String, SimpleTransitions> {
+    trans_f
+        .iter()
+        .map(|(state, transitions)| {
+            let converted_transitions: SimpleTransitions = transitions
+                .into_iter()
+                .map(|t| SimpleTransition {
+                    props: t.props.clone(),
+                    target: rename_map.get(&t.target).unwrap().into(),
+                })
+                .collect();
+            (rename_map.get(state).unwrap().into(), converted_transitions)
+        })
+        .collect()
+}
+
+fn rename_initial(
+    initial: HashSet<Conjuction>,
+    rename_map: &HashMap<Conjuction, String>,
+) -> HashSet<String> {
+    initial
+        .iter()
+        .map(|c| rename_map.get(c).unwrap().into())
+        .collect()
+}
+
+fn rename_accept_t(
+    accept_t: HashMap<PhiOp, HashSet<(Conjuction, ConjTransition)>>,
+    rename_map: &HashMap<Conjuction, String>,
+) -> HashMap<PhiOp, HashSet<(String, SimpleTransition)>> {
+    accept_t
+        .into_iter()
+        .map(|(phi, transitions)| {
+            let simple_transitions = transitions
+                .iter()
+                .map(|(c, ct)| {
+                    (
+                        rename_map.get(c).unwrap().into(),
+                        SimpleTransition {
+                            props: ct.props.clone(),
+                            target: rename_map.get(&ct.target).unwrap().into(),
+                        },
+                    )
+                })
+                .collect();
+            (phi, simple_transitions)
+        })
+        .collect()
 }
 
 fn prune_transitions(
@@ -120,7 +192,7 @@ fn prune_transitions(
             if delete {
                 trans_f.get_mut(s).unwrap().remove(t);
             }
-            delete
+            !delete
         });
     }
 }

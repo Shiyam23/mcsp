@@ -1,3 +1,5 @@
+use self::ba::to_ba;
+
 use super::{Formula, LogicImpl, PctlInfo};
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -104,7 +106,8 @@ enum PhiOp {
 impl Formula for PhiOp {
     fn evaluate(&self, _pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
         let vwaa = vwaa::to_vwaa(self.clone());
-        gba::to_gba(vwaa);
+        let gba = gba::to_gba(vwaa);
+        to_ba(gba);
         todo!()
     }
 
