@@ -163,10 +163,7 @@ fn prune_transitions(
         let set_duplicate = set.clone();
         set.retain(|(s, t)| {
             let delete = set_duplicate.iter().any(|(s2, t2)| {
-                t != t2
-                    && s == s2
-                    && t2.props.0.is_subset(&t.props.0)
-                    && t2.target.0.is_subset(&t.target.0)
+                t != t2 && s == s2 && t2.props.0.is_subset(&t.props.0) && t2.target.0 == t.target.0
             });
             if delete {
                 trans_f.get_mut(s).unwrap().remove(t);
