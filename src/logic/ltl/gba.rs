@@ -1,4 +1,5 @@
 use super::{
+    common::get_rename_map,
     vwaa::{Alphabet, Delta, Transition, Transitions, VWAA},
     And, Conjuction, PhiOp,
 };
@@ -89,8 +90,8 @@ pub fn to_gba(vwaa: VWAA) -> GBA {
     }
 
     prune_transitions(&mut accept_t, &mut trans_f);
-    let rename_map = get_rename_map(trans_f.clone());
-    let renamed_trans_f = rename_trans_f(trans_f, &rename_map);
+    let rename_map = get_rename_map(&trans_f);
+    let renamed_trans_f = rename_trans_f(&trans_f, &rename_map);
     let renamed_initial = rename_initial(vwaa.initial, &rename_map);
     let renamed_accept_t = rename_accept_t(accept_t, &rename_map);
 
@@ -101,31 +102,9 @@ pub fn to_gba(vwaa: VWAA) -> GBA {
     }
 }
 
-fn get_rename_map(trans_f: HashMap<Conjuction, ConjTransitions>) -> HashMap<Conjuction, String> {
-    let mut conj_to_index: HashMap<Conjuction, String> = HashMap::with_capacity(trans_f.len());
-    let mut half_simple_trans_f: HashMap<String, ConjTransitions> =
-        HashMap::with_capacity(trans_f.len());
-    let mut index = 1;
-    for (conj, transitions) in trans_f {
-        let redundant_state = half_simple_trans_f
-            .iter()
-            .find(|(_, delta)| transitions == **delta)
-            .map(|(state, _)| state);
-        if let Some(state) = redundant_state {
-            conj_to_index.insert(conj, state.to_string());
-        } else {
-            half_simple_trans_f.insert(index.to_string(), transitions);
-            conj_to_index.insert(conj, index.to_string());
-            index = index + 1;
-        }
-    }
-
-    return conj_to_index;
-}
-
 fn rename_trans_f(
-    trans_f: HashMap<Conjuction, ConjTransitions>,
-    rename_map: &HashMap<Conjuction, String>,
+    trans_f: &HashMap<Conjuction, ConjTransitions>,
+    rename_map: &HashMap<&Conjuction, String>,
 ) -> HashMap<String, SimpleTransitions> {
     trans_f
         .iter()
@@ -144,7 +123,7 @@ fn rename_trans_f(
 
 fn rename_initial(
     initial: HashSet<Conjuction>,
-    rename_map: &HashMap<Conjuction, String>,
+    rename_map: &HashMap<&Conjuction, String>,
 ) -> HashSet<String> {
     initial
         .iter()
@@ -154,7 +133,7 @@ fn rename_initial(
 
 fn rename_accept_t(
     accept_t: HashMap<PhiOp, HashSet<(Conjuction, ConjTransition)>>,
-    rename_map: &HashMap<Conjuction, String>,
+    rename_map: &HashMap<&Conjuction, String>,
 ) -> HashMap<PhiOp, HashSet<(String, SimpleTransition)>> {
     accept_t
         .into_iter()
