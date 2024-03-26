@@ -1,4 +1,5 @@
 use super::{
+    common::get_rename_map,
     gba::{SimpleTransition, SimpleTransitions, GBA},
     vwaa::Alphabet,
 };
@@ -12,9 +13,21 @@ struct Transition {
     target: State,
 }
 
-pub fn to_ba(gba: GBA) {
-    let initials: HashSet<State> = gba.initial.into_iter().map(|c| (c, 0)).collect();
+#[derive(Hash, Eq, PartialEq)]
+struct SimpleBATransition {
+    props: Alphabet,
+    target: String,
+}
 
+#[allow(dead_code)]
+pub struct BA {
+    initials: HashSet<String>,
+    transitions: HashMap<String, HashSet<SimpleBATransition>>,
+    finals: HashSet<String>,
+}
+
+pub fn to_ba(gba: GBA) -> BA {
+    let initials: HashSet<State> = gba.initial.into_iter().map(|c| (c, 0)).collect();
     let mut pop_queue: VecDeque<State> = VecDeque::new();
     let mut trans_f: HashMap<State, HashSet<Transition>> = HashMap::new();
     let mut acc_transitions: Vec<HashSet<(String, SimpleTransition)>> =
@@ -35,6 +48,38 @@ pub fn to_ba(gba: GBA) {
             }
         }
     }
+
+    let rename_map = get_rename_map(&trans_f);
+    let initials = trans_f
+        .keys()
+        .filter(|(_, index)| *index == 0)
+        .map(|state| rename_map.get(state).unwrap().clone())
+        .collect::<HashSet<_>>();
+    let finals = trans_f
+        .keys()
+        .filter(|(_, index)| *index == acc_transitions.len())
+        .map(|state| rename_map.get(state).unwrap().clone())
+        .collect::<HashSet<_>>();
+    let renamed_trans_f: HashMap<String, HashSet<SimpleBATransition>> = trans_f
+        .iter()
+        .map(|(state, transitions)| {
+            let renamed_transitions: HashSet<SimpleBATransition> = transitions
+                .into_iter()
+                .map(|transition| SimpleBATransition {
+                    props: transition.props.clone(),
+                    target: rename_map.get(&transition.target).unwrap().clone(),
+                })
+                .collect();
+            let renamed_state = rename_map.get(&state).unwrap().clone();
+            (renamed_state, renamed_transitions)
+        })
+        .collect();
+
+    BA {
+        initials,
+        transitions: renamed_trans_f,
+        finals,
+    }
 }
 
 fn delta(
@@ -52,7 +97,8 @@ fn delta(
         };
         result.insert(tran);
     }
-    prune_transitions(result)
+    prune_transitions(&mut result);
+    result
 }
 
 fn next(
@@ -76,13 +122,11 @@ fn next(
         .unwrap_or(start_index);
 }
 
-fn prune_transitions(transitions: HashSet<Transition>) -> HashSet<Transition> {
+fn prune_transitions(transitions: &mut HashSet<Transition>) {
     let copy = transitions.clone();
-    copy.into_iter()
-        .filter(|t| {
-            !transitions
-                .iter()
-                .any(|ot| t != ot && t.target == ot.target && ot.props.0.is_subset(&t.props.0))
+    transitions.retain(|t| {
+        !copy.iter().any(|ot| {
+            t.props != ot.props && t.props.0.is_subset(&ot.props.0) && t.target == ot.target
         })
-        .collect()
+    })
 }
