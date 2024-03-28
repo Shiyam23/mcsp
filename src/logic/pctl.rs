@@ -303,12 +303,7 @@ impl PathPhi for Next {
         format!("◯ ({})", self.phi)
     }
 
-    fn evaluate(
-        &self,
-        pctl_info: &PctlInfo,
-        comp: &Comp,
-        #[allow(unused_variables)] prob_bound: f64,
-    ) -> HashSet<NodeIndex> {
+    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex> {
         let graph = &pctl_info.reach_graph;
         let phi_node_indices = self.phi.evaluate(pctl_info);
 
@@ -363,7 +358,6 @@ impl PathPhi for Next {
     }
 }
 
-#[allow(unused_variables)]
 impl Until {
     fn w_op(
         &self,
@@ -425,7 +419,6 @@ impl Until {
     }
 }
 
-#[allow(unused_variables)]
 impl PathPhi for Until {
     fn fmt(&self) -> String {
         format!("({}) U ({})", self.prev, self.until)
@@ -509,8 +502,8 @@ impl PathPhi for Until {
         }
         prob_map
             .into_iter()
-            .filter(|(k, v)| comp.evaluate(*v, prob_bound))
-            .map(|(k, v)| k)
+            .filter(|(_, v)| comp.evaluate(*v, prob_bound))
+            .map(|(k, _)| k)
             .collect()
     }
 }
