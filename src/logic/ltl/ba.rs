@@ -1,9 +1,8 @@
 use super::{
-    common::get_rename_map,
-    gba::{SimpleTransition, SimpleTransitions, GBA},
-    vwaa::Alphabet,
+    common::{get_rename_map, Alphabet, SimpleTransition},
+    gba::{SimpleTransitions, GBA},
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 type State = (String, usize);
 
@@ -13,21 +12,16 @@ struct Transition {
     target: State,
 }
 
-#[derive(Hash, Eq, PartialEq)]
-struct SimpleBATransition {
-    props: Alphabet,
-    target: String,
-}
-
-#[allow(dead_code)]
 pub struct BA {
-    initials: HashSet<String>,
-    transitions: HashMap<String, HashSet<SimpleBATransition>>,
-    finals: HashSet<String>,
+    pub initials: BTreeSet<String>,
+    pub symbols: HashSet<Alphabet>,
+    pub transitions: HashMap<String, HashSet<SimpleTransition>>,
+    pub finals: BTreeSet<String>,
 }
 
 pub fn to_ba(gba: GBA) -> BA {
     let initials: HashSet<State> = gba.initial.into_iter().map(|c| (c, 0)).collect();
+    let mut symbols = HashSet::new();
     let mut pop_queue: VecDeque<State> = VecDeque::new();
     let mut trans_f: HashMap<State, HashSet<Transition>> = HashMap::new();
     let mut acc_transitions: Vec<HashSet<(String, SimpleTransition)>> =
@@ -35,14 +29,11 @@ pub fn to_ba(gba: GBA) -> BA {
     acc_transitions.sort_by(|s2, s1| s1.len().cmp(&s2.len()));
     pop_queue.extend(initials);
     while let Some(state) = pop_queue.pop_front() {
-        println!("State: {:?}", state);
         let transitions = delta(&state, &gba.trans_f, &acc_transitions);
-        for transition in &transitions {
-            println!("T: {} -> {:?}", transition.props, transition.target);
-        }
         trans_f.insert(state.clone(), transitions);
         for transition in trans_f.get(&state).unwrap() {
             let target = transition.target.clone();
+            symbols.insert(transition.props.clone());
             if !trans_f.contains_key(&target) && !pop_queue.contains(&target) {
                 pop_queue.push_back(target);
             }
@@ -54,18 +45,18 @@ pub fn to_ba(gba: GBA) -> BA {
         .keys()
         .filter(|(_, index)| *index == 0)
         .map(|state| rename_map.get(state).unwrap().clone())
-        .collect::<HashSet<_>>();
+        .collect::<BTreeSet<_>>();
     let finals = trans_f
         .keys()
         .filter(|(_, index)| *index == acc_transitions.len())
         .map(|state| rename_map.get(state).unwrap().clone())
-        .collect::<HashSet<_>>();
-    let renamed_trans_f: HashMap<String, HashSet<SimpleBATransition>> = trans_f
+        .collect::<BTreeSet<_>>();
+    let renamed_trans_f: HashMap<String, HashSet<SimpleTransition>> = trans_f
         .iter()
         .map(|(state, transitions)| {
-            let renamed_transitions: HashSet<SimpleBATransition> = transitions
+            let renamed_transitions: HashSet<SimpleTransition> = transitions
                 .into_iter()
-                .map(|transition| SimpleBATransition {
+                .map(|transition| SimpleTransition {
                     props: transition.props.clone(),
                     target: rename_map.get(&transition.target).unwrap().clone(),
                 })
@@ -77,6 +68,7 @@ pub fn to_ba(gba: GBA) -> BA {
 
     BA {
         initials,
+        symbols,
         transitions: renamed_trans_f,
         finals,
     }

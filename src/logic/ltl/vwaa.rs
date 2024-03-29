@@ -1,45 +1,11 @@
-use super::common::bar_op;
+use super::common::{bar_op, Alphabet};
 use super::{Conjuction, Phi, PhiOp, True};
 use crate::logic::ltl::And;
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
 
 pub type Transitions = HashSet<Transition>;
-
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct Alphabet(pub BTreeSet<PhiOp>);
-
-impl Display for Alphabet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut rep: String = "{".into();
-        for ap in &self.0 {
-            rep.push_str(&Phi::fmt(ap));
-            rep.push_str(", ");
-        }
-        if let Some(value) = rep.strip_suffix(", ") {
-            rep = value.to_string();
-        }
-        rep.push('}');
-        f.write_str(&rep)
-    }
-}
-
-impl Alphabet {
-    fn full() -> Alphabet {
-        Alphabet(BTreeSet::new())
-    }
-
-    fn with_prop(ap: PhiOp) -> Alphabet {
-        let mut new_set = BTreeSet::new();
-        new_set.insert(ap);
-        Alphabet(new_set)
-    }
-    fn intersection(&self, other: &Alphabet) -> Alphabet {
-        let new_set = self.0.union(&other.0).cloned().collect();
-        Alphabet(new_set)
-    }
-}
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub struct Transition {

@@ -1,7 +1,54 @@
 use super::PhiOp;
 use crate::logic::ltl::{And, Phi};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::fmt::Display;
 use std::hash::Hash;
+
+#[derive(Hash, Eq, PartialEq, Clone)]
+pub struct SimpleTransition {
+    pub props: Alphabet,
+    pub target: String,
+}
+
+impl Display for SimpleTransition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} -> {}", self.props, self.target)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+pub struct Alphabet(pub BTreeSet<PhiOp>);
+
+impl Display for Alphabet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut rep: String = "{".into();
+        for ap in &self.0 {
+            rep.push_str(&Phi::fmt(ap));
+            rep.push_str(", ");
+        }
+        if let Some(value) = rep.strip_suffix(", ") {
+            rep = value.to_string();
+        }
+        rep.push('}');
+        f.write_str(&rep)
+    }
+}
+
+impl Alphabet {
+    pub fn full() -> Alphabet {
+        Alphabet(BTreeSet::new())
+    }
+
+    pub fn with_prop(ap: PhiOp) -> Alphabet {
+        let mut new_set = BTreeSet::new();
+        new_set.insert(ap);
+        Alphabet(new_set)
+    }
+    pub fn intersection(&self, other: &Alphabet) -> Alphabet {
+        let new_set = self.0.union(&other.0).cloned().collect();
+        Alphabet(new_set)
+    }
+}
 
 pub fn bar_op(phi: &PhiOp) -> HashSet<PhiOp> {
     let mut set = HashSet::new();

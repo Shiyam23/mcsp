@@ -1,5 +1,6 @@
-use self::ba::to_ba;
+use crate::logic::ltl::safra::determinize;
 
+use self::ba::to_ba;
 use super::{Formula, LogicImpl, PctlInfo};
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -11,6 +12,8 @@ use std::{collections::HashSet, fmt::Display};
 mod ba;
 mod common;
 mod gba;
+mod mdpa;
+mod safra;
 mod vwaa;
 
 #[derive(Parser)]
@@ -107,7 +110,9 @@ impl Formula for PhiOp {
     fn evaluate(&self, _pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
         let vwaa = vwaa::to_vwaa(self.clone());
         let gba = gba::to_gba(vwaa);
-        to_ba(gba);
+        let ba = to_ba(gba);
+        let dra = determinize(ba);
+
         todo!()
     }
 

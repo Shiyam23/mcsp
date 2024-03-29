@@ -1,6 +1,6 @@
 use super::{
-    common::get_rename_map,
-    vwaa::{Alphabet, Delta, Transition, Transitions, VWAA},
+    common::{get_rename_map, Alphabet, SimpleTransition},
+    vwaa::{Delta, Transition, Transitions, VWAA},
     And, Conjuction, PhiOp,
 };
 use std::{
@@ -24,18 +24,6 @@ pub struct ConjTransition {
 }
 
 impl Display for ConjTransition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} -> {}", self.props, self.target)
-    }
-}
-
-#[derive(Hash, Eq, PartialEq, Clone)]
-pub struct SimpleTransition {
-    pub props: Alphabet,
-    pub target: String,
-}
-
-impl Display for SimpleTransition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} -> {}", self.props, self.target)
     }
