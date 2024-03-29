@@ -221,13 +221,11 @@ pub fn determinize(ba: BA) -> DRA {
     let initial_tree = SafraTree::with_root(ba.initials);
     pop_queue.push_back(initial_tree.clone());
     while let Some(safra_tree) = pop_queue.pop_front() {
-        println!("State: {}", safra_tree);
         let succ = safra_tree
             .clone()
             .succ_tree(&ba.transitions, &ba.finals, &ba.symbols);
         trans_f.insert(safra_tree.clone(), succ.clone());
         succ.into_iter().for_each(|t| {
-            println!("Symbol: {}\nTarget: {}", t.props, t.target);
             if !(pop_queue.contains(&t.target) || trans_f.contains_key(&t.target)) {
                 pop_queue.push_back(t.target);
             }
