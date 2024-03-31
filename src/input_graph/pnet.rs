@@ -125,7 +125,7 @@ impl PetriNet {
         let initial_marking: Marking = states.iter().map(|s| s.token).collect();
         let mut upcoming_markings = VecDeque::<Marking>::new();
         upcoming_markings.push_back(initial_marking.clone());
-        reach_graph.add_node(State(initial_marking));
+        reach_graph.add_node(State(initial_marking.clone()));
         while let Some(marking) = upcoming_markings.pop_front() {
             let pre_index = reach_graph
                 .node_indices()
