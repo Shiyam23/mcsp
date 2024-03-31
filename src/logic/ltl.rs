@@ -1,3 +1,4 @@
+use crate::logic::ltl::mdpa::cross_mdp;
 use crate::logic::ltl::safra::determinize;
 
 use self::ba::to_ba;
@@ -107,12 +108,12 @@ enum PhiOp {
 }
 
 impl Formula for PhiOp {
-    fn evaluate(&self, _pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
+    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
         let vwaa = vwaa::to_vwaa(self.clone());
         let gba = gba::to_gba(vwaa);
         let ba = to_ba(gba);
         let dra = determinize(ba);
-
+        cross_mdp(dra, pctl_info);
         todo!()
     }
 

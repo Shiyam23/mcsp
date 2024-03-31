@@ -20,16 +20,18 @@ impl DRA {
     pub fn delta(&self, state: &String, opt_symbol: Option<&String>) -> String {
         let transition_map = self.trans_f.get(state).unwrap();
         match opt_symbol {
-            Some(symbol) => transition_map.get(&DRATransition::Symbol(symbol.into())),
-            None => transition_map.get(&DRATransition::Others),
+            Some(symbol) => match transition_map.get(&DRATransition::Symbol(symbol.into())) {
+                Some(target) => target,
+                None => transition_map.get(&DRATransition::Others).unwrap(),
+            },
+            None => transition_map.get(&DRATransition::Others).unwrap(),
         }
-        .expect("DRA does not contain this symbol")
         .into()
     }
 }
 
-#[derive(PartialOrd, Ord, Eq, PartialEq)]
-enum DRATransition {
+#[derive(PartialOrd, Ord, Eq, PartialEq, Debug)]
+pub enum DRATransition {
     Symbol(String),
     Others,
 }
