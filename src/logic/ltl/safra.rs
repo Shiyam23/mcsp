@@ -3,17 +3,35 @@ use super::{
     common::{get_rename_map, Alphabet, SimpleTransition},
 };
 use std::{
-    collections::{BTreeSet, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     fmt::Display,
 };
 
+static NODE_START_INDEX: usize = 1;
 type TransitionFunction = HashMap<String, HashSet<SimpleTransition>>;
 
-#[allow(dead_code)]
 pub struct DRA {
-    initial: String,
-    trans_f: HashMap<String, HashSet<SimpleTransition>>,
-    acc: Vec<(HashSet<String>, HashSet<String>)>,
+    pub initial: String,
+    pub trans_f: HashMap<String, BTreeMap<DRATransition, String>>,
+    pub acc: Vec<(HashSet<String>, HashSet<String>)>,
+}
+
+impl DRA {
+    pub fn delta(&self, state: &String, opt_symbol: Option<&String>) -> String {
+        let transition_map = self.trans_f.get(state).unwrap();
+        match opt_symbol {
+            Some(symbol) => transition_map.get(&DRATransition::Symbol(symbol.into())),
+            None => transition_map.get(&DRATransition::Others),
+        }
+        .expect("DRA does not contain this symbol")
+        .into()
+    }
+}
+
+#[derive(PartialOrd, Ord, Eq, PartialEq)]
+enum DRATransition {
+    Symbol(String),
+    Others,
 }
 
 #[derive(Clone, PartialEq)]
@@ -180,7 +198,7 @@ impl Display for SafraTree {
 
 impl SafraTree {
     fn with_root(label: BTreeSet<String>) -> SafraTree {
-        let root_node = SafraNode::with_labels(label, 0);
+        let root_node = SafraNode::with_labels(label, NODE_START_INDEX);
         SafraTree { root: root_node }
     }
 
@@ -193,7 +211,6 @@ impl SafraTree {
         // Step 1 and 2 are independent from the transition
         let mut new_tree = self.clone();
         new_tree.root.remove_mark();
-
         new_tree.root.branch_finals(acc);
 
         let mut succ_trees = Vec::new();
@@ -236,11 +253,10 @@ pub fn determinize(ba: BA) -> DRA {
     let rename_map = get_rename_map(&trans_f);
 
     // Get accepting tuples
-    let start_index = 1;
     let max_node = trans_f.keys().map(|st| st.root.get_max_id()).max().unwrap();
     let mut acc = Vec::with_capacity(max_node);
 
-    for i in start_index..=max_node {
+    for i in NODE_START_INDEX..=max_node {
         let mut non_exist = HashSet::new();
         let mut marked = HashSet::new();
         for state in trans_f.keys() {
@@ -254,20 +270,28 @@ pub fn determinize(ba: BA) -> DRA {
         }
         acc.push((non_exist, marked));
     }
-    let renamed_trans_f = trans_f
-        .iter()
-        .map(|(state, transitions)| {
-            let renamed_transitions = transitions
-                .into_iter()
-                .map(|t| SimpleTransition {
-                    props: t.props.clone(),
-                    target: rename_map.get(&t.target).unwrap().clone(),
-                })
-                .collect();
-            let renamed_state = rename_map.get(&state).unwrap().into();
-            (renamed_state, renamed_transitions)
-        })
-        .collect();
+
+    let mut renamed_trans_f: HashMap<String, BTreeMap<DRATransition, String>> = HashMap::new();
+    for (state, transitions) in &trans_f {
+        let state_name: String = rename_map.get(&state).unwrap().into();
+        renamed_trans_f.insert(state_name.clone(), BTreeMap::new());
+        for transition in transitions {
+            let phi = transition.props.0.first();
+            let dra_transition = match phi {
+                Some(phi) => match phi {
+                    super::PhiOp::AP(ap) => DRATransition::Symbol(ap.value.clone()),
+                    _ => unreachable!(),
+                },
+                None => DRATransition::Others,
+            };
+            let new_target = rename_map.get(&transition.target).unwrap().into();
+            renamed_trans_f
+                .get_mut(&state_name)
+                .unwrap()
+                .insert(dra_transition, new_target);
+        }
+    }
+
     let renamed_initial: String = rename_map.get(&initial_tree).unwrap().into();
 
     DRA {
