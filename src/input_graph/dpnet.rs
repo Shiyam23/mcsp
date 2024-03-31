@@ -1,13 +1,17 @@
+use super::{
+    ApMap, InputGraph, Node,
+    Node::{Action, State},
+    MDP,
+};
+use crate::input_graph;
+use crate::utils::common::powerset;
+use log::warn;
 use petgraph::{algo::dijkstra, graph::NodeIndex, prelude::DiGraph};
 use std::{
     collections::VecDeque,
     fmt::{Debug, Display},
     process::exit,
 };
-use log::warn;
-use crate::input_graph;
-use crate::utils::common::powerset;
-use super::{ApMap, InputGraph, MDP, Node::{Action, State}, Node};
 
 pub type Marking = Vec<usize>;
 
@@ -56,7 +60,7 @@ pub struct DPetriNet {
     pub transitions: Vec<Transition>,
     pub c_transitions: Vec<Transition>,
     pub initial_marking: Marking,
-    pub ap_map: ApMap<Marking>
+    pub ap_map: ApMap<Marking>,
 }
 
 impl DPetriNet {
@@ -70,7 +74,7 @@ impl DPetriNet {
             .node_indices()
             .filter(|&m| {
                 if let State(m) = &graph[m] {
-                    return input_graph::State::le(m, marking) && *m != *marking
+                    return input_graph::State::le(m, marking) && *m != *marking;
                 }
                 false
             })
@@ -99,7 +103,11 @@ impl DPetriNet {
     ) -> Vec<&'a Transition> {
         transitions
             .iter()
-            .filter(|t| t.pre.iter().all(|(state_id, tokens) | marking[*state_id] >= *tokens))
+            .filter(|t| {
+                t.pre
+                    .iter()
+                    .all(|(state_id, tokens)| marking[*state_id] >= *tokens)
+            })
             .collect()
     }
 
@@ -114,7 +122,7 @@ impl DPetriNet {
         succ_marking
     }
 
-    pub fn to_mdp(&self, precision: i32) -> MDP<Marking> {
+    pub fn to_mdp(&self, precision: i32) -> (MDP<Marking>, Marking) {
         let mut reach_graph: MDP<Marking> = DiGraph::new();
         let states: &Vec<Place> = &self.places;
         let initial_marking: Marking = states.iter().map(|s| s.token).collect();
@@ -126,8 +134,10 @@ impl DPetriNet {
                 .node_indices()
                 .find(|&n| reach_graph[n] == State(marking.clone()))
                 .unwrap();
-            let enabled_transitions = DPetriNet::get_active_transitions(&marking, &self.transitions);
-            let deactivated_transitions: Vec<&Transition> = self.c_transitions
+            let enabled_transitions =
+                DPetriNet::get_active_transitions(&marking, &self.transitions);
+            let deactivated_transitions: Vec<&Transition> = self
+                .c_transitions
                 .iter()
                 .filter(|t| enabled_transitions.contains(t))
                 .collect();
@@ -137,16 +147,17 @@ impl DPetriNet {
                 let action_index = reach_graph.add_node(pseudo_action);
                 reach_graph.add_edge(pre_index, action_index, 1.0);
                 let new_activated_transitions: Vec<&&Transition> = enabled_transitions
-                 .iter()
-                 .filter(|t| !deactivated_transition_set.contains(t))
-                 .collect();
+                    .iter()
+                    .filter(|t| !deactivated_transition_set.contains(t))
+                    .collect();
 
                 // Add transitions
-                let sum_fire_rates: f64 = new_activated_transitions.iter().map(|t| t.fire_rate).sum();
+                let sum_fire_rates: f64 =
+                    new_activated_transitions.iter().map(|t| t.fire_rate).sum();
 
                 // If there are no activated transitions, then add one edge back to marking with probabilty 1.0
                 if new_activated_transitions.is_empty() {
-                 reach_graph.add_edge(action_index, pre_index, 1.0);
+                    reach_graph.add_edge(action_index, pre_index, 1.0);
                 }
 
                 // Otherwise iterate through all activated transitions
@@ -154,22 +165,23 @@ impl DPetriNet {
                     let succ_marking = DPetriNet::succ_marking(&marking, activated_transition);
                     let succ_index;
                     if let Some(index) = reach_graph
-                     .node_indices()
-                     .find(|&n| reach_graph[n] == State(succ_marking.clone()))
+                        .node_indices()
+                        .find(|&n| reach_graph[n] == State(succ_marking.clone()))
                     {
-                     succ_index = index;
+                        succ_index = index;
                     } else {
-                     succ_index = reach_graph.add_node(State(succ_marking.clone()));
-                     upcoming_markings.push_back(succ_marking);
+                        succ_index = reach_graph.add_node(State(succ_marking.clone()));
+                        upcoming_markings.push_back(succ_marking);
                     }
                     DPetriNet::check_infinite_graph(&reach_graph, &marking, &pre_index);
                     let mut probability = activated_transition.fire_rate / sum_fire_rates;
-                    probability = (probability * 10.0_f64.powi(precision)).round() / 10.0_f64.powi(precision);
+                    probability =
+                        (probability * 10.0_f64.powi(precision)).round() / 10.0_f64.powi(precision);
                     reach_graph.add_edge(action_index, succ_index, probability);
                 }
             }
         }
-        reach_graph
+        (reach_graph, initial_marking)
     }
 }
 
@@ -180,7 +192,7 @@ impl InputGraph for DPetriNet {
             .node_weights()
             .filter_map(|n| match n {
                 State(s) => Some(s),
-                Action(_) => None
+                Action(_) => None,
             })
             .collect();
         // Check whether the assigned markings are reached (is a node in the reachability graph)
@@ -196,23 +208,25 @@ impl InputGraph for DPetriNet {
                 }
                 retain
             }));
-        self.ap_map.retain(|k,v| {
+        self.ap_map.retain(|k, v| {
             if v.is_empty() {
-                warn!(
-                    "\"{}\" is empty! Removing it from the list of all AP's", k
-                )
+                warn!("\"{}\" is empty! Removing it from the list of all AP's", k)
             }
             !v.is_empty()
         });
     }
 
-    fn to_mdp(&self, precision: i32) -> MDP<Marking> {
+    fn to_mdp(&self, precision: i32) -> (MDP<Marking>, Marking) {
         self.to_mdp(precision)
     }
 
-    fn get_ap_map(&self) -> &ApMap<Marking> { &self.ap_map }
+    fn get_ap_map(&self) -> &ApMap<Marking> {
+        &self.ap_map
+    }
 
-    fn get_init_state(&self) -> &Marking { &self.initial_marking }
+    fn get_init_state(&self) -> &Marking {
+        &self.initial_marking
+    }
 }
 
 fn fmt(list: &[&&Transition]) -> String {

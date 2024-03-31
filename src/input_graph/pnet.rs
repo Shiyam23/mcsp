@@ -119,7 +119,7 @@ impl PetriNet {
         succ_marking
     }
 
-    pub fn to_mdp(&self, precision: i32) -> MDP<Marking> {
+    pub fn to_mdp(&self, precision: i32) -> (MDP<Marking>, Marking) {
         let mut reach_graph: MDP<Marking> = DiGraph::new();
         let states: &Vec<Place> = &self.places;
         let initial_marking: Marking = states.iter().map(|s| s.token).collect();
@@ -158,7 +158,7 @@ impl PetriNet {
                 reach_graph.add_edge(action_index, succ_index, probability);
             }
         }
-        reach_graph
+        (reach_graph, initial_marking)
     }
 }
 
@@ -193,7 +193,7 @@ impl InputGraph for PetriNet {
         });
     }
 
-    fn to_mdp(&self, precision: i32) -> MDP<Marking> {
+    fn to_mdp(&self, precision: i32) -> (MDP<Marking>, Marking) {
         self.to_mdp(precision)
     }
 

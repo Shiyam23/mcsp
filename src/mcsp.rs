@@ -11,6 +11,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 pub struct ModelCheckInfo<'a, T> {
+    pub initial_marking: T,
     pub reach_graph: MDP<T>,
     pub ap_map: &'a ApMap<T>,
     pub formula: Box<dyn Formula>,
@@ -18,6 +19,7 @@ pub struct ModelCheckInfo<'a, T> {
 }
 
 pub struct PctlInfo {
+    pub initial_marking: NodeIndex,
     pub reach_graph: MDP<NodeIndex>,
     pub ap_map: HashMap<String, HashSet<NodeIndex>>,
     pub max_error: f64,
@@ -39,7 +41,7 @@ where
         let mut input_graph: Box<T> = P::parse(&content);
         info!("Petri net parsed successfully");
         info!("Validating petri net...");
-        let reach_graph = input_graph.to_mdp(args.precision_digits);
+        let (reach_graph, initial_marking) = input_graph.to_mdp(args.precision_digits);
         input_graph.validate_graph(&reach_graph);
         info!("Petri net has been validated successfully");
 
@@ -53,6 +55,7 @@ where
         let formula = parse_formula(args.logic_type, &content);
         info!("Formula parsed successfully");
         let mc: ModelCheckInfo<T::S> = ModelCheckInfo {
+            initial_marking,
             reach_graph,
             ap_map: input_graph.get_ap_map(),
             formula,
@@ -73,8 +76,19 @@ where
             |_, e| *e,
         );
 
-        let normalized_ap_map = Self::normalize_ap_map(&mc_info.reach_graph, mc_info.ap_map);
+        let graph = mc_info.reach_graph;
+
+        let initial_node = graph
+            .node_indices()
+            .find(|&node_index| match &graph[node_index] {
+                State(m) => *m == mc_info.initial_marking,
+                Action(_) => false,
+            })
+            .unwrap();
+
+        let normalized_ap_map = Self::normalize_ap_map(&graph, mc_info.ap_map);
         let pctl_info: PctlInfo = PctlInfo {
+            initial_marking: initial_node,
             reach_graph: normalized_mdp,
             ap_map: normalized_ap_map,
             max_error: mc_info.max_error,
@@ -89,7 +103,7 @@ where
             "{:?}",
             markings
                 .iter()
-                .map(|index| mc_info.reach_graph[*index].clone())
+                .map(|index| graph[*index].clone())
                 .collect::<Vec<Node<K>>>()
         );
     }
