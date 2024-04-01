@@ -1,3 +1,4 @@
+use crate::common::rename_map;
 use crate::input_graph::Node::{Action, State};
 use crate::input_graph::{ApMap, InputGraph, Node, ParseImpl, MDP};
 use crate::logic::{parse_formula, Formula};
@@ -32,6 +33,7 @@ pub struct ModelCheck<T: InputGraph, P: ParseImpl<T>> {
 
 impl<T, P> ModelCheck<T, P>
 where
+    <T as InputGraph>::S: Ord,
     T: InputGraph,
     P: ParseImpl<T>,
 {
@@ -66,27 +68,31 @@ where
 
     pub fn evaluate_pctl<K>(mc_info: ModelCheckInfo<K>)
     where
-        K: Debug + PartialEq + Clone,
+        K: Debug + PartialEq + Clone + Ord,
     {
+        let rename_map = rename_map(&mc_info.reach_graph);
         let normalized_mdp = mc_info.reach_graph.map(
-            |ni, node| match node {
-                State(_) => State(ni),
-                Action(a) => Action(a.into()),
+            |_, node| match node {
+                State(_) => State(rename_map.get(node).unwrap().clone()),
+                Action(a) => Action(a.clone()),
             },
             |_, e| *e,
         );
-
-        let graph = mc_info.reach_graph;
-
-        let initial_node = graph
-            .node_indices()
-            .find(|&node_index| match &graph[node_index] {
-                State(m) => *m == mc_info.initial_marking,
-                Action(_) => false,
+        let initial_node = rename_map
+            .get(&Node::State(mc_info.initial_marking))
+            .unwrap()
+            .clone();
+        let normalized_ap_map = mc_info
+            .ap_map
+            .into_iter()
+            .map(|(ap, set)| {
+                let renamed_set = set
+                    .into_iter()
+                    .map(|k| rename_map.get(&State(k.clone())).unwrap().clone())
+                    .collect();
+                (ap.into(), renamed_set)
             })
-            .unwrap();
-
-        let normalized_ap_map = Self::normalize_ap_map(&graph, mc_info.ap_map);
+            .collect();
         let pctl_info: PctlInfo = PctlInfo {
             initial_marking: initial_node,
             reach_graph: normalized_mdp,
@@ -103,32 +109,8 @@ where
             "{:?}",
             markings
                 .iter()
-                .map(|index| graph[*index].clone())
+                .map(|index| mc_info.reach_graph[*index].clone())
                 .collect::<Vec<Node<K>>>()
         );
-    }
-
-    fn normalize_ap_map<K>(
-        graph: &MDP<K>,
-        src_map: &HashMap<String, HashSet<K>>,
-    ) -> HashMap<String, HashSet<NodeIndex>>
-    where
-        K: PartialEq,
-    {
-        let mut normalized_ap_map: HashMap<String, HashSet<NodeIndex>> = HashMap::new();
-        for (ap, markings) in src_map {
-            normalized_ap_map.insert(ap.into(), HashSet::new());
-            for marking in markings {
-                let node_index = graph
-                    .node_indices()
-                    .find(|&node_index| match &graph[node_index] {
-                        State(m) => m == marking,
-                        Action(_) => false,
-                    })
-                    .unwrap();
-                normalized_ap_map.get_mut(ap).unwrap().insert(node_index);
-            }
-        }
-        normalized_ap_map
     }
 }

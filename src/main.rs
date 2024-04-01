@@ -1,3 +1,4 @@
+mod common;
 mod input_graph;
 mod logic;
 mod mcsp;

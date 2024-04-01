@@ -16,7 +16,7 @@ pub enum InputGraphType {
     DecisionPetri,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Ord, Eq, PartialOrd)]
 pub enum Node<T> {
     State(T),
     Action(String),
