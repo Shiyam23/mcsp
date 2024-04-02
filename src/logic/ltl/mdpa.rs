@@ -7,7 +7,7 @@ use crate::{
 use petgraph::{algo::kosaraju_scc, graph::NodeIndex, visit::EdgeRef};
 use std::collections::{HashSet, VecDeque};
 
-pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) {
+pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, HashSet<NodeIndex>) {
     let reversed_ap_map = reverse_map(&pctl_info.ap_map);
     let mdp_graph = &pctl_info.reach_graph;
     let mut cross_graph: MDP<(NodeIndex, String)> = MDP::new();
@@ -51,15 +51,16 @@ pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) {
     }
 
     let scc = kosaraju_scc(&cross_graph);
-    let _aec = aec(scc, &dra.acc, &cross_graph);
+    let aec = aec(scc, &dra.acc, &cross_graph);
+    return (cross_graph, aec);
 }
 
 fn aec(
     scc: Vec<Vec<NodeIndex>>,
     acc: &[(HashSet<String>, HashSet<String>)],
     cross_graph: &petgraph::prelude::Graph<Node<(NodeIndex, String)>, f64>,
-) -> Vec<Vec<NodeIndex>> {
-    let mut aec: Vec<Vec<NodeIndex>> = Vec::new();
+) -> HashSet<NodeIndex> {
+    let mut aec: HashSet<NodeIndex> = HashSet::new();
     for component in scc {
         // Our graph nodes are divided into state nodes and action nodes. So we need to consider
         // components containing the corresponding state and action nodes and ignore the rest
@@ -83,8 +84,8 @@ fn aec(
                 })
                 .any(|(_, q)| acc_pair.1.contains(&q));
 
-            if is_not_in_l && is_in_k && !aec.contains(&component) {
-                aec.push(component.clone())
+            if is_not_in_l && is_in_k {
+                aec.extend(component.iter().filter(|&ni| cross_graph[*ni].is_state()));
             }
         }
     }
