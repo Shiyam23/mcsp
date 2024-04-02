@@ -417,25 +417,17 @@ impl Until {
         }
         new
     }
-}
 
-impl PathPhi for Until {
-    fn fmt(&self) -> String {
-        format!("({}) U ({})", self.prev, self.until)
-    }
-
-    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex> {
+    pub fn s1_sq(
+        &self,
+        pctl_info: &PctlInfo,
+        prob_map: &mut HashMap<NodeIndex, f64>,
+    ) -> (HashSet<NodeIndex>, HashSet<NodeIndex>) {
         let all: HashSet<_> = pctl_info
             .reach_graph
             .node_indices()
             .filter(|i| matches!(pctl_info.reach_graph[*i], Node::State(_)))
             .collect();
-
-        let geq_zero = *comp == Comp::Geq && prob_bound == 0.0;
-        let leq_one = *comp == Comp::Leq && prob_bound == 1.0;
-        if geq_zero || leq_one {
-            return all;
-        }
 
         let left_phi = self.prev.evaluate(pctl_info);
         let right_phi = self.until.evaluate(pctl_info);
@@ -449,7 +441,6 @@ impl PathPhi for Until {
         let left_tsi = not_right_phi;
         let right_tsi = not_left_and_not_right;
 
-        let mut prob_map: HashMap<NodeIndex, f64> = HashMap::new();
         let s_0 = self.w_op(&left_tsi, &right_tsi, &all, &pctl_info.reach_graph);
         for index in &s_0 {
             prob_map.insert(*index, 0.0);
@@ -465,6 +456,16 @@ impl PathPhi for Until {
         for node_index in &s_q {
             prob_map.insert(*node_index, 0.0);
         }
+        return (s_1, s_q);
+    }
+
+    pub fn iterate_prob(
+        pctl_info: &PctlInfo,
+        s_q: HashSet<NodeIndex>,
+        prob_map: &mut HashMap<NodeIndex, f64>,
+        s_1: HashSet<NodeIndex>,
+        comp: &Comp,
+    ) {
         let graph = &pctl_info.reach_graph;
         loop {
             let mut max_error: f64 = 0.0;
@@ -500,6 +501,30 @@ impl PathPhi for Until {
                 break;
             }
         }
+    }
+}
+
+impl PathPhi for Until {
+    fn fmt(&self) -> String {
+        format!("({}) U ({})", self.prev, self.until)
+    }
+
+    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex> {
+        let all: HashSet<_> = pctl_info
+            .reach_graph
+            .node_indices()
+            .filter(|i| matches!(pctl_info.reach_graph[*i], Node::State(_)))
+            .collect();
+        let geq_zero = *comp == Comp::Geq && prob_bound == 0.0;
+        let leq_one = *comp == Comp::Leq && prob_bound == 1.0;
+        if geq_zero || leq_one {
+            return all;
+        }
+
+        let mut prob_map: HashMap<NodeIndex, f64> = HashMap::new();
+        let (s_1, s_q) = self.s1_sq(&pctl_info, &mut prob_map);
+
+        Self::iterate_prob(pctl_info, s_q, &mut prob_map, s_1, comp);
         prob_map
             .into_iter()
             .filter(|(_, v)| comp.evaluate(*v, prob_bound))
