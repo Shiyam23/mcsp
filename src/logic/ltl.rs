@@ -1,12 +1,17 @@
+use crate::common::rename_map;
+use crate::input_graph::Node;
 use crate::logic::ltl::mdpa::cross_mdp;
 use crate::logic::ltl::safra::determinize;
+use crate::logic::pctl::{True as Pctl_True, Until as Pctl_Until, AP as Pctl_AP};
+use crate::utils::common::Comp;
 
 use self::ba::to_ba;
 use super::{Formula, LogicImpl, PctlInfo};
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
+use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::hash::Hash;
 use std::{collections::HashSet, fmt::Display};
 
@@ -113,7 +118,48 @@ impl Formula for PhiOp {
         let gba = gba::to_gba(vwaa);
         let ba = to_ba(gba);
         let dra = determinize(ba);
-        cross_mdp(dra, pctl_info);
+
+        let dra_initial = dra.initial.clone();
+        let (cross_mdp, aec) = cross_mdp(dra, pctl_info);
+        let rename_map = rename_map(&cross_mdp);
+
+        let renamed_mdp = cross_mdp.map(
+            |_, node| match node {
+                Node::State(_) => Node::State(rename_map.get(node).unwrap().clone()),
+                Node::Action(a) => Node::Action(a.clone()),
+            },
+            |_, e| *e,
+        );
+        let renamed_initial = rename_map
+            .get(&Node::State((pctl_info.initial_marking, dra_initial)))
+            .unwrap();
+        let mut adapter_ap_map = HashMap::new();
+        adapter_ap_map.insert("aec".into(), aec);
+        let adapter_pctl_info = PctlInfo {
+            initial_marking: *renamed_initial,
+            reach_graph: renamed_mdp,
+            ap_map: adapter_ap_map,
+            max_error: pctl_info.max_error,
+        };
+
+        let pctl_until = Pctl_Until {
+            prev: Box::new(Pctl_True),
+            until: Box::new(Pctl_AP {
+                value: "aec".into(),
+            }),
+        };
+
+        let mut prob_map_min: HashMap<NodeIndex, f64> = HashMap::new();
+        let (s_1, s_q) = pctl_until.s1_sq(&adapter_pctl_info, &mut prob_map_min);
+        let mut prob_map_max = prob_map_min.clone();
+        Pctl_Until::iterate_prob(
+            &adapter_pctl_info,
+            s_q.clone(),
+            &mut prob_map_min,
+            s_1.clone(),
+            &Comp::Leq,
+        );
+        Pctl_Until::iterate_prob(&adapter_pctl_info, s_q, &mut prob_map_max, s_1, &Comp::Geq);
         todo!()
     }
 
