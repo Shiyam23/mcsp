@@ -1,6 +1,7 @@
 use super::common::{bar_op, Alphabet};
 use super::{Conjuction, Phi, PhiOp, True};
 use crate::logic::ltl::And;
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use std::hash::Hash;
@@ -38,6 +39,7 @@ impl Transition {
     }
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub struct VWAA {
     pub initial: HashSet<Conjuction>,
     pub delta: HashMap<Conjuction, Transitions>,
@@ -52,11 +54,11 @@ pub trait Delta {
 impl Delta for PhiOp {
     fn small_delta(phi: &PhiOp) -> Transitions {
         match phi {
-            PhiOp::False(_) => return HashSet::with_capacity(0),
+            PhiOp::False(_) => HashSet::with_capacity(0),
             PhiOp::True(_) => {
                 let mut result_set: Transitions = HashSet::with_capacity(1);
                 result_set.insert(Transition::new(Alphabet::full(), PhiOp::True(True)));
-                return result_set;
+                result_set
             }
             PhiOp::AP(_) | PhiOp::Not(_) => {
                 let mut result_set: Transitions = HashSet::with_capacity(1);
@@ -64,7 +66,7 @@ impl Delta for PhiOp {
                     Alphabet::with_prop(phi.clone()),
                     PhiOp::True(True),
                 ));
-                return result_set;
+                result_set
             }
             // Commented out because we treat negated propositions as one state
             // PhiOp::Not(_) => {
@@ -87,7 +89,7 @@ impl Delta for PhiOp {
                     HashSet::with_capacity(left_cross_normal.len() + big_delta_right.len());
                 result_set.extend(left_cross_normal);
                 result_set.extend(big_delta_right);
-                return result_set;
+                result_set
             }
             PhiOp::Next(next) => {
                 let bar_phi = bar_op(&next.phi);
@@ -96,7 +98,7 @@ impl Delta for PhiOp {
                     let transition = Transition::new(Alphabet::full(), item);
                     result_set.insert(transition);
                 }
-                return result_set;
+                result_set
             }
             PhiOp::Release(release) => {
                 let big_delta_right = Self::big_delta(&release.right_phi);
@@ -107,7 +109,7 @@ impl Delta for PhiOp {
                     PhiOp::Release(release.clone()),
                 ));
                 right_normal_set.extend(big_delta_left);
-                return Transition::cross_op(right_normal_set, big_delta_right);
+                Transition::cross_op(right_normal_set, big_delta_right)
             }
             _ => unreachable!(),
         }
@@ -145,8 +147,8 @@ pub fn to_vwaa(phi: PhiOp) -> VWAA {
         for temporal_state in state.0 {
             let transitions: Transitions = PhiOp::big_delta(&temporal_state);
             let flat_state = Conjuction(And::flatten(temporal_state));
-            if !trans_f.contains_key(&flat_state) {
-                trans_f.insert(flat_state, transitions.clone());
+            if let Entry::Vacant(flat_state) = trans_f.entry(flat_state) {
+                flat_state.insert(transitions.clone());
                 for transition in transitions {
                     pop_queue.push_back(Conjuction(And::flatten(transition.target)));
                 }

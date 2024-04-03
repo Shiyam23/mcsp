@@ -88,7 +88,7 @@ where
     let mut reversed_map = HashMap::new();
     for (k, set) in map {
         for v in set {
-            if None == reversed_map.get(v) {
+            if reversed_map.get(v).is_none() {
                 reversed_map.insert(v, HashSet::new());
             }
             reversed_map.get_mut(v).unwrap().insert(k);

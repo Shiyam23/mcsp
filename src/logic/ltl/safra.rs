@@ -10,6 +10,7 @@ use std::{
 static NODE_START_INDEX: usize = 1;
 type TransitionFunction = HashMap<String, HashSet<SimpleTransition>>;
 
+#[allow(clippy::upper_case_acronyms)]
 pub struct DRA {
     pub initial: String,
     pub trans_f: HashMap<String, BTreeMap<DRATransition, String>>,
@@ -118,8 +119,7 @@ impl SafraNode {
         let labels_united = self
             .children
             .iter()
-            .map(|sn| sn.labels.clone())
-            .flatten()
+            .flat_map(|sn| sn.labels.clone())
             .collect::<BTreeSet<_>>();
         if self.labels == labels_united {
             self.children.clear();
@@ -155,7 +155,7 @@ impl SafraNode {
         for label in &self.labels {
             let target = trans_f.get(label).unwrap();
             target
-                .into_iter()
+                .iter()
                 .filter(|t| t.props == *symbol || t.props.0.is_empty())
                 .map(|t| t.target.clone())
                 .for_each(|l| {
@@ -179,11 +179,10 @@ impl SafraNode {
         if self.index == id {
             return Some(self);
         }
-        return self
-            .children
+        self.children
             .iter()
             .map(|c| c.get_by_id(id))
-            .find(|node| node.is_some())?;
+            .find(|node| node.is_some())?
     }
 }
 
@@ -220,7 +219,7 @@ impl SafraTree {
         // Step 3, 4, 5 and 6 for every transition
         for symbol in symbols {
             let mut new_tree_symbol = new_tree.clone();
-            new_tree_symbol.root.powerset(&old_trans_f, &symbol);
+            new_tree_symbol.root.powerset(old_trans_f, symbol);
             new_tree_symbol.root.merge_horizontal();
             new_tree_symbol.root.remove_empty_nodes();
             new_tree_symbol.root.merge_vertical();

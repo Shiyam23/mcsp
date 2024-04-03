@@ -123,7 +123,7 @@ impl PhiOp {
 
         let renamed_mdp = cross_mdp.map(
             |_, node| match node {
-                Node::State(_) => Node::State(rename_map.get(node).unwrap().clone()),
+                Node::State(_) => Node::State(*rename_map.get(node).unwrap()),
                 Node::Action(a) => Node::Action(a.clone()),
             },
             |_, e| *e,
@@ -166,8 +166,7 @@ impl PhiOp {
         let vwaa = vwaa::to_vwaa(self.clone());
         let gba = gba::to_gba(vwaa);
         let ba = to_ba(gba);
-        let dra = determinize(ba);
-        dra
+        determinize(ba)
     }
 }
 
@@ -185,7 +184,7 @@ fn print_results<K>(
             Node::State((ni, _)) => ni,
             Node::Action(_) => unreachable!(),
         };
-        let marking = match normalization_map.get(&original_ni).unwrap() {
+        let marking = match normalization_map.get(original_ni).unwrap() {
             Node::State(m) => m,
             Node::Action(_) => unreachable!(),
         };
@@ -209,7 +208,7 @@ impl Phi for PhiOp {
         if self.is_temporal() {
             return self.get_value().fmt();
         }
-        return format!("({})", self.get_value().fmt());
+        format!("({})", self.get_value().fmt())
     }
 
     fn negate(&self) -> PhiOp {
@@ -566,7 +565,7 @@ impl And {
 
         let mut result = BTreeSet::new();
         result.insert(phi);
-        return result;
+        result
 
         // Maybe I need this later :)
         // if *and.left_phi == phi || *and.right_phi == phi {

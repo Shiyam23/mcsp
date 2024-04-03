@@ -60,8 +60,7 @@ pub fn bar_op(phi: &PhiOp) -> HashSet<PhiOp> {
         return bar_op(&or.left_phi)
             .union(&bar_op(&or.right_phi))
             .cloned()
-            .collect::<HashSet<PhiOp>>()
-            .into();
+            .collect::<HashSet<PhiOp>>();
     }
     if let PhiOp::And(and) = phi {
         let mut result_set: HashSet<PhiOp> = HashSet::new();
@@ -96,8 +95,8 @@ where
         } else {
             half_simple_trans_f.insert(index.to_string(), transitions);
             conj_to_index.insert(conj, index.to_string());
-            index = index + 1;
+            index += 1;
         }
     }
-    return conj_to_index;
+    conj_to_index
 }

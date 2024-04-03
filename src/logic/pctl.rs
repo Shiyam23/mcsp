@@ -474,7 +474,7 @@ impl Until {
         for node_index in &s_q {
             prob_map.insert(*node_index, 0.0);
         }
-        return (s_1, s_q);
+        (s_1, s_q)
     }
 
     pub fn iterate_prob(
@@ -545,7 +545,7 @@ impl PathPhi for Until {
         }
 
         let mut prob_map: HashMap<NodeIndex, f64> = HashMap::new();
-        let (s_1, s_q) = self.s1_sq(&pctl_info, &mut prob_map);
+        let (s_1, s_q) = self.s1_sq(pctl_info, &mut prob_map);
 
         Self::iterate_prob(pctl_info, s_q, &mut prob_map, s_1, comp);
         prob_map

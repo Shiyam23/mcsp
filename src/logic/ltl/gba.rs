@@ -11,6 +11,7 @@ use std::{
 type ConjTransitions = HashSet<ConjTransition>;
 pub type SimpleTransitions = HashSet<SimpleTransition>;
 
+#[allow(clippy::upper_case_acronyms)]
 pub struct GBA {
     pub initial: HashSet<String>,
     pub trans_f: HashMap<String, SimpleTransitions>,
@@ -59,7 +60,7 @@ pub fn to_gba(vwaa: VWAA) -> GBA {
     for final_state in &vwaa.final_states {
         for (state, transitions) in &trans_f {
             for transition in transitions {
-                if !transition.target.0.contains(&final_state)
+                if !transition.target.0.contains(final_state)
                     || implies_acc(transition, final_state, &trans_f)
                 {
                     match accept_t.entry(final_state.clone()) {
@@ -98,7 +99,7 @@ fn rename_trans_f(
         .iter()
         .map(|(state, transitions)| {
             let converted_transitions: SimpleTransitions = transitions
-                .into_iter()
+                .iter()
                 .map(|t| SimpleTransition {
                     props: t.props.clone(),
                     target: rename_map.get(&t.target).unwrap().into(),
@@ -147,7 +148,7 @@ fn prune_transitions(
     accept_t: &mut HashMap<PhiOp, HashSet<(Conjuction, ConjTransition)>>,
     trans_f: &mut HashMap<Conjuction, HashSet<ConjTransition>>,
 ) {
-    for (_, set) in accept_t {
+    for set in accept_t.values_mut() {
         let set_duplicate = set.clone();
         set.retain(|(s, t)| {
             let delete = set_duplicate.iter().any(|(s2, t2)| {
@@ -164,8 +165,8 @@ fn prune_transitions(
 fn delta2(conj: &Conjuction) -> Transitions {
     conj.0
         .iter()
-        .map(|phi| PhiOp::small_delta(phi))
-        .reduce(|acc, phi| Transition::cross_op(acc, phi))
+        .map(PhiOp::small_delta)
+        .reduce(Transition::cross_op)
         .unwrap()
 }
 

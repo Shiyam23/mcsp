@@ -52,7 +52,7 @@ pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, H
 
     let scc = kosaraju_scc(&cross_graph);
     let aec = aec(scc, &dra.acc, &cross_graph);
-    return (cross_graph, aec);
+    (cross_graph, aec)
 }
 
 fn aec(
@@ -98,12 +98,12 @@ fn prop_to_state(
     dra: &DRA,
 ) -> Vec<String> {
     if let Some(props) = opt_props {
-        return props
-            .into_iter()
-            .map(|prop| dra.delta(&src_state, Some(&prop)))
-            .collect();
+        props
+            .iter()
+            .map(|prop| dra.delta(src_state, Some(prop)))
+            .collect()
     } else {
-        return vec![dra.delta(&src_state, None)];
+        vec![dra.delta(src_state, None)]
     }
 }
 
@@ -112,14 +112,13 @@ fn find_or_create_node(
     mdp_node: NodeIndex,
     dra_state: &String,
 ) -> NodeIndex {
-    let new_node_index = match cross_graph
+    match cross_graph
         .node_indices()
         .find(|i| cross_graph[*i] == Node::State((mdp_node, dra_state.into())))
     {
         Some(index) => index,
         None => cross_graph.add_node(Node::State((mdp_node, dra_state.into()))),
-    };
-    new_node_index
+    }
 }
 
 fn has_edges(node: &(NodeIndex, String), graph: &MDP<(NodeIndex, String)>) -> bool {

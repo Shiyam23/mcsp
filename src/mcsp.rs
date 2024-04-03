@@ -74,22 +74,21 @@ where
         let rename_map = rename_map(&mc_info.reach_graph);
         let normalized_mdp = mc_info.reach_graph.map(
             |_, node| match node {
-                State(_) => State(rename_map.get(node).unwrap().clone()),
+                State(_) => State(*rename_map.get(node).unwrap()),
                 Action(a) => Action(a.clone()),
             },
             |_, e| *e,
         );
-        let initial_node = rename_map
+        let initial_node = *rename_map
             .get(&Node::State(mc_info.initial_marking))
-            .unwrap()
-            .clone();
+            .unwrap();
         let normalized_ap_map = mc_info
             .ap_map
-            .into_iter()
+            .iter()
             .map(|(ap, set)| {
                 let renamed_set = set
-                    .into_iter()
-                    .map(|k| rename_map.get(&State(k.clone())).unwrap().clone())
+                    .iter()
+                    .map(|k| *rename_map.get(&State(k.clone())).unwrap())
                     .collect();
                 (ap.into(), renamed_set)
             })

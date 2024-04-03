@@ -2,7 +2,10 @@ use super::{
     common::{get_rename_map, Alphabet, SimpleTransition},
     gba::{SimpleTransitions, GBA},
 };
-use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
+use std::{
+    cmp::Reverse,
+    collections::{BTreeSet, HashMap, HashSet, VecDeque},
+};
 
 type State = (String, usize);
 
@@ -12,6 +15,7 @@ struct Transition {
     target: State,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub struct BA {
     pub initials: BTreeSet<String>,
     pub symbols: HashSet<Alphabet>,
@@ -25,8 +29,8 @@ pub fn to_ba(gba: GBA) -> BA {
     let mut pop_queue: VecDeque<State> = VecDeque::new();
     let mut trans_f: HashMap<State, HashSet<Transition>> = HashMap::new();
     let mut acc_transitions: Vec<HashSet<(String, SimpleTransition)>> =
-        gba.acc_transitions.into_iter().map(|(_, v)| v).collect();
-    acc_transitions.sort_by(|s2, s1| s1.len().cmp(&s2.len()));
+        gba.acc_transitions.into_values().collect();
+    acc_transitions.sort_by_key(|s1| Reverse(s1.len()));
     pop_queue.extend(initials);
     while let Some(state) = pop_queue.pop_front() {
         let transitions = delta(&state, &gba.trans_f, &acc_transitions);
@@ -55,7 +59,7 @@ pub fn to_ba(gba: GBA) -> BA {
         .iter()
         .map(|(state, transitions)| {
             let renamed_transitions: HashSet<SimpleTransition> = transitions
-                .into_iter()
+                .iter()
                 .map(|transition| SimpleTransition {
                     props: transition.props.clone(),
                     target: rename_map.get(&transition.target).unwrap().clone(),
@@ -104,11 +108,8 @@ fn next(
     };
 
     return (start_index..=acc_t.len())
-        .into_iter()
         .filter(|&i| {
-            ((start_index + 1)..=i)
-                .into_iter()
-                .all(|k| acc_t.get(k - 1).unwrap().contains(transition))
+            ((start_index + 1)..=i).all(|k| acc_t.get(k - 1).unwrap().contains(transition))
         })
         .max()
         .unwrap_or(start_index);

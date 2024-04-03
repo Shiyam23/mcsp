@@ -30,10 +30,10 @@ fn check_activated_transitions<'a>(
     transitions: &'a Vec<Transition>,
     states: &Vec<State>,
 ) -> Vec<&'a Transition> {
-    return transitions
+    transitions
         .iter()
         .filter(|t| t.pre.iter().all(|&s| states[s].token > 0))
-        .collect();
+        .collect()
 }
 
 fn get_rn_transition<'a>(all_transitions: Vec<&'a Transition>) -> (&'a Transition, f64) {
