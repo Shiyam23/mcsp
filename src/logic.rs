@@ -1,9 +1,15 @@
+use std::collections::BTreeMap;
+
+use petgraph::graph::NodeIndex;
+
+use crate::input_graph::Node;
 use crate::logic::ltl::LtlImpl;
 use crate::logic::pctl::PctlImpl;
 use crate::mcsp::PctlInfo;
 use crate::LogicType;
-use petgraph::graph::NodeIndex;
-use std::collections::HashSet;
+
+use self::ltl::PhiOp;
+use self::pctl::PctlFormula;
 
 pub mod ltl;
 pub mod pctl;
@@ -11,7 +17,7 @@ pub mod pctl;
 const FORMULA_ID: &str = "PHI";
 
 pub trait LogicImpl {
-    fn parse(&self, content: &str) -> Box<dyn Formula>;
+    fn parse(&self, content: &str) -> Formula;
 
     fn find_formula(&self, content: &str) -> Option<String> {
         if let Some(start_index) = content.find(FORMULA_ID) {
@@ -26,14 +32,26 @@ pub trait LogicImpl {
     }
 }
 
-pub fn parse_formula(logic_type: LogicType, content: &str) -> Box<dyn Formula> {
+pub fn parse_formula(logic_type: LogicType, content: &str) -> Formula {
     match logic_type {
         LogicType::Pctl => PctlImpl.parse(content),
         LogicType::LTL => LtlImpl.parse(content),
     }
 }
 
-pub trait Formula {
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex>;
-    fn fmt(&self) -> String;
+pub enum Formula {
+    Pctl(PctlFormula),
+    Ltl(PhiOp),
+}
+
+impl Formula {
+    pub fn evaluate<K>(&self, pctl_info: &PctlInfo, rename_map: BTreeMap<NodeIndex, Node<K>>)
+    where
+        K: std::fmt::Debug + PartialEq + Clone + Ord,
+    {
+        match self {
+            Formula::Pctl(formula) => formula.evaluate(pctl_info, rename_map),
+            Formula::Ltl(formula) => formula.evaluate(pctl_info, rename_map),
+        }
+    }
 }

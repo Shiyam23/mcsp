@@ -2,6 +2,7 @@ use crate::common::rename_map;
 use crate::input_graph::Node::{Action, State};
 use crate::input_graph::{ApMap, InputGraph, Node, ParseImpl, MDP};
 use crate::logic::{parse_formula, Formula};
+use crate::utils::common::reverse_btree_map;
 use crate::utils::file::read_file;
 use crate::Args;
 use log::info;
@@ -15,7 +16,7 @@ pub struct ModelCheckInfo<'a, T> {
     pub initial_marking: T,
     pub reach_graph: MDP<T>,
     pub ap_map: &'a ApMap<T>,
-    pub formula: Box<dyn Formula>,
+    pub formula: Formula,
     pub max_error: f64,
 }
 
@@ -101,16 +102,8 @@ where
         };
 
         info!("Evaluating formula...");
-        let markings = mc_info.formula.evaluate(&pctl_info);
-
-        // Print all markings satisfying the pctl statement
-        info!("The following markings satisfy the given pctl statement:");
-        info!(
-            "{:?}",
-            markings
-                .iter()
-                .map(|index| mc_info.reach_graph[*index].clone())
-                .collect::<Vec<Node<K>>>()
-        );
+        mc_info
+            .formula
+            .evaluate(&pctl_info, reverse_btree_map(rename_map));
     }
 }

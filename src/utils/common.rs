@@ -1,5 +1,5 @@
 use log::error;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use std::process::exit;
@@ -80,7 +80,6 @@ pub fn powerset<T>(s: &[T]) -> Vec<Vec<&T>> {
         .collect()
 }
 
-#[allow(dead_code)]
 pub fn reverse_map<K, V>(map: &HashMap<K, HashSet<V>>) -> HashMap<&V, HashSet<&K>>
 where
     V: Hash + Eq,
@@ -94,6 +93,17 @@ where
             }
             reversed_map.get_mut(v).unwrap().insert(k);
         }
+    }
+    reversed_map
+}
+
+pub fn reverse_btree_map<K, V>(map: BTreeMap<K, V>) -> BTreeMap<V, K>
+where
+    V: Ord,
+{
+    let mut reversed_map = BTreeMap::new();
+    for (k, v) in map {
+        reversed_map.insert(v, k);
     }
     reversed_map
 }

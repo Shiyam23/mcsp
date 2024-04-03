@@ -2,14 +2,14 @@ use crate::input_graph::{Node, MDP};
 use crate::logic::{Formula, LogicImpl};
 use crate::mcsp::PctlInfo;
 use crate::utils::common::Comp;
-use log::error;
+use log::{error, info};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
 use petgraph::graph::{Edges, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Incoming, Outgoing};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::process::exit;
 
@@ -147,7 +147,7 @@ impl PctlImpl {
 }
 
 impl LogicImpl for PctlImpl {
-    fn parse(&self, content: &str) -> Box<dyn Formula> {
+    fn parse(&self, content: &str) -> Formula {
         let phi_content = match self.find_formula(content) {
             None => panic!("Formula must contain 'PHI' exactly once!"),
             Some(c) => c,
@@ -157,25 +157,32 @@ impl LogicImpl for PctlImpl {
             .collect();
         let pair = pairs.first().unwrap();
         let state_phi: Box<dyn StatePhi> = Self::parse_state(pair);
-        Box::new(PctlFormula(state_phi))
+        Formula::Pctl(PctlFormula(state_phi))
     }
 }
 
-struct PctlFormula(Box<dyn StatePhi>);
+pub struct PctlFormula(Box<dyn StatePhi>);
 
-impl Formula for PctlFormula {
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
-        self.0.evaluate(pctl_info)
-    }
-
-    fn fmt(&self) -> String {
-        StatePhi::fmt(self.0.as_ref())
+impl PctlFormula {
+    pub fn evaluate<K>(&self, pctl_info: &PctlInfo, rename_map: BTreeMap<NodeIndex, Node<K>>)
+    where
+        K: std::fmt::Debug,
+    {
+        let nodes = self.0.evaluate_inner(pctl_info);
+        info!("The following markings satisfy the given pctl statement:");
+        for node in nodes {
+            let marking = match rename_map.get(&node).unwrap() {
+                Node::State(m) => m,
+                Node::Action(_) => unreachable!(),
+            };
+            info!("Marking {:?}", marking);
+        }
     }
 }
 
 pub trait StatePhi {
     fn fmt(&self) -> String;
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex>;
+    fn evaluate_inner(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex>;
 }
 
 impl Display for dyn StatePhi {
@@ -186,7 +193,12 @@ impl Display for dyn StatePhi {
 
 pub trait PathPhi {
     fn fmt(&self) -> String;
-    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex>;
+    fn evaluate_inner(
+        &self,
+        pctl_info: &PctlInfo,
+        comp: &Comp,
+        prob_bound: f64,
+    ) -> HashSet<NodeIndex>;
 }
 
 impl Display for dyn PathPhi {
@@ -202,7 +214,7 @@ impl StatePhi for True {
         "true".into()
     }
 
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
+    fn evaluate_inner(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
         pctl_info
             .reach_graph
             .node_indices()
@@ -220,8 +232,8 @@ impl StatePhi for NotPhi {
         format!("¬ ({})", self.phi)
     }
 
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
-        let phi_nodes = self.phi.evaluate(pctl_info);
+    fn evaluate_inner(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
+        let phi_nodes = self.phi.evaluate_inner(pctl_info);
         let all_nodes: HashSet<NodeIndex> = pctl_info
             .reach_graph
             .node_indices()
@@ -242,8 +254,9 @@ impl StatePhi for Prob {
         format!("P(({}), {} {})", self.phi, self.comp, self.probability)
     }
 
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
-        self.phi.evaluate(pctl_info, &self.comp, self.probability)
+    fn evaluate_inner(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
+        self.phi
+            .evaluate_inner(pctl_info, &self.comp, self.probability)
     }
 }
 
@@ -256,7 +269,7 @@ impl StatePhi for AP {
         self.value.clone()
     }
 
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
+    fn evaluate_inner(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
         if pctl_info.ap_map.contains_key(&self.value) {
             pctl_info.ap_map[&self.value].clone()
         } else {
@@ -279,9 +292,9 @@ impl StatePhi for AndPhi {
         format!("({}) ∧ ({})", self.left_phi, self.right_phi)
     }
 
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
-        let left_markings = self.left_phi.evaluate(pctl_info);
-        let right_markings = self.right_phi.evaluate(pctl_info);
+    fn evaluate_inner(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
+        let left_markings = self.left_phi.evaluate_inner(pctl_info);
+        let right_markings = self.right_phi.evaluate_inner(pctl_info);
         left_markings
             .intersection(&right_markings)
             .copied()
@@ -303,9 +316,14 @@ impl PathPhi for Next {
         format!("◯ ({})", self.phi)
     }
 
-    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex> {
+    fn evaluate_inner(
+        &self,
+        pctl_info: &PctlInfo,
+        comp: &Comp,
+        prob_bound: f64,
+    ) -> HashSet<NodeIndex> {
         let graph = &pctl_info.reach_graph;
-        let phi_node_indices = self.phi.evaluate(pctl_info);
+        let phi_node_indices = self.phi.evaluate_inner(pctl_info);
 
         // Create a hashmap which maps every action to a probability of satisfying phi
         let mut action_prob: HashMap<NodeIndex, f64> = HashMap::new();
@@ -429,8 +447,8 @@ impl Until {
             .filter(|i| matches!(pctl_info.reach_graph[*i], Node::State(_)))
             .collect();
 
-        let left_phi = self.prev.evaluate(pctl_info);
-        let right_phi = self.until.evaluate(pctl_info);
+        let left_phi = self.prev.evaluate_inner(pctl_info);
+        let right_phi = self.until.evaluate_inner(pctl_info);
 
         // not E(phi_1 U phi_2) = A(not phi_2 W (not phi_1 and not phi_2))
         let not_left_phi: HashSet<NodeIndex> = all.difference(&left_phi).copied().collect();
@@ -509,7 +527,12 @@ impl PathPhi for Until {
         format!("({}) U ({})", self.prev, self.until)
     }
 
-    fn evaluate(&self, pctl_info: &PctlInfo, comp: &Comp, prob_bound: f64) -> HashSet<NodeIndex> {
+    fn evaluate_inner(
+        &self,
+        pctl_info: &PctlInfo,
+        comp: &Comp,
+        prob_bound: f64,
+    ) -> HashSet<NodeIndex> {
         let all: HashSet<_> = pctl_info
             .reach_graph
             .node_indices()

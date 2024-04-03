@@ -1,19 +1,18 @@
+use self::ba::to_ba;
+use super::{Formula, LogicImpl, PctlInfo};
 use crate::common::rename_map;
-use crate::input_graph::Node;
+use crate::input_graph::{Node, MDP};
 use crate::logic::ltl::mdpa::cross_mdp;
 use crate::logic::ltl::safra::determinize;
 use crate::logic::pctl::{True as Pctl_True, Until as Pctl_Until, AP as Pctl_AP};
 use crate::utils::common::Comp;
-
-use self::ba::to_ba;
-use super::{Formula, LogicImpl, PctlInfo};
+use log::info;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
-use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt::Display;
 use std::hash::Hash;
-use std::{collections::HashSet, fmt::Display};
 
 mod ba;
 mod common;
@@ -85,7 +84,7 @@ impl LtlImpl {
 }
 
 impl LogicImpl for LtlImpl {
-    fn parse(&self, content: &str) -> Box<dyn super::Formula> {
+    fn parse(&self, content: &str) -> Formula {
         let phi_content = match self.find_formula(content) {
             None => panic!("Formula must contain 'PHI' exactly once!"),
             Some(c) => c,
@@ -95,12 +94,12 @@ impl LogicImpl for LtlImpl {
             .unwrap()
             .collect();
         let pair = pairs.first().unwrap();
-        Box::new(Self::parse_phi(pair))
+        Formula::Ltl(Self::parse_phi(pair))
     }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
-enum PhiOp {
+pub enum PhiOp {
     True(True),
     False(False),
     Not(Not),
@@ -112,13 +111,12 @@ enum PhiOp {
     Or(Or),
 }
 
-impl Formula for PhiOp {
-    fn evaluate(&self, pctl_info: &PctlInfo) -> HashSet<NodeIndex> {
-        let vwaa = vwaa::to_vwaa(self.clone());
-        let gba = gba::to_gba(vwaa);
-        let ba = to_ba(gba);
-        let dra = determinize(ba);
-
+impl PhiOp {
+    pub fn evaluate<K>(&self, pctl_info: &PctlInfo, normalization_map: BTreeMap<NodeIndex, Node<K>>)
+    where
+        K: std::fmt::Debug,
+    {
+        let dra = self.to_dra();
         let dra_initial = dra.initial.clone();
         let (cross_mdp, aec) = cross_mdp(dra, pctl_info);
         let rename_map = rename_map(&cross_mdp);
@@ -160,11 +158,43 @@ impl Formula for PhiOp {
             &Comp::Leq,
         );
         Pctl_Until::iterate_prob(&adapter_pctl_info, s_q, &mut prob_map_max, s_1, &Comp::Geq);
-        todo!()
+
+        print_results(prob_map_min, cross_mdp, normalization_map, prob_map_max);
     }
 
-    fn fmt(&self) -> String {
-        Phi::fmt(self)
+    fn to_dra(&self) -> safra::DRA {
+        let vwaa = vwaa::to_vwaa(self.clone());
+        let gba = gba::to_gba(vwaa);
+        let ba = to_ba(gba);
+        let dra = determinize(ba);
+        dra
+    }
+}
+
+fn print_results<K>(
+    prob_map_min: HashMap<NodeIndex, f64>,
+    cross_mdp: MDP<(NodeIndex, String)>,
+    normalization_map: BTreeMap<NodeIndex, Node<K>>,
+    prob_map_max: HashMap<NodeIndex, f64>,
+) where
+    K: std::fmt::Debug,
+{
+    for (node_index, prob) in prob_map_min {
+        let cross_node = &cross_mdp[node_index];
+        let original_ni = match cross_node {
+            Node::State((ni, _)) => ni,
+            Node::Action(_) => unreachable!(),
+        };
+        let marking = match normalization_map.get(&original_ni).unwrap() {
+            Node::State(m) => m,
+            Node::Action(_) => unreachable!(),
+        };
+        info!(
+            "Marking: {:?} - Min: {} - Max: {}",
+            marking,
+            prob,
+            prob_map_max.get(&node_index).unwrap()
+        );
     }
 }
 
