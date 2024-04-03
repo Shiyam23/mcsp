@@ -9,4 +9,4 @@ AP = {
     (init, {(0,1)}),
     (goal, {(1,0)})
 }
-PHI = P(tt UNTIL goal, >= 0.09)
+PHI = P(tt U goal, >= 0.09)

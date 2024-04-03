@@ -11,19 +11,19 @@ phi_id = {"phi"}
 Phi_id = {"Phi"}
 true = {"tt"}
 false = {"ff"}
-and_op = _{"AND"}
-or_op = _{"OR"}
-not_op = _{"NOT "}
+and_op = _{"&"}
+or_op = _{"|"}
+not_op = _{"!"}
 prob = {"P" ~ lb ~ phi ~ separator ~ comp ~ float ~ rb}
 prob_alw = {"P" ~ lb ~ "ALW" ~ Phi ~ separator ~ comp ~ float ~ rb}
 
 // Expressions
-Phi_and = {and_op ~ lb ~ Phi ~ separator ~ Phi ~ rb}
-Phi_or = {or_op ~ lb ~ Phi ~ separator ~ Phi ~ rb}
+Phi_and = {lb ~ Phi ~ rb ~ and_op ~ lb ~ Phi ~ rb}
+Phi_or = {lb ~ Phi ~ rb ~ or_op ~ lb ~ Phi ~ rb}
 Phi_not = {not_op ~ Phi}
-phi_next = {"NEXT " ~ Phi}
-phi_until = {Phi ~ "UNTIL" ~ Phi}
-phi_ev = {"EV" ~ phi}
+phi_next = {"X" ~ Phi}
+phi_until = {Phi ~ "U" ~ Phi}
+phi_ev = {"F" ~ Phi}
 Phi = _{true | false | prob_alw | prob | Phi_and | Phi_or | Phi_not | "(" ~ Phi ~ ")" | ap}
 phi = _{ phi_next | phi_until | phi_ev | "(" ~ phi ~ ")"}
 prefix = _{"PHI" ~ "="}

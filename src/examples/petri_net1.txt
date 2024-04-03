@@ -13,4 +13,4 @@ AP = {
     (init, {(4,0,1,0,0,0,0)}),
     (goal, {(0,0,0,0,0,0,1)})
 }
-PHI = P(tt UNTIL goal, >= 0.09)
+PHI = P(tt U goal, >= 0.09)
