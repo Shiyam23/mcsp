@@ -10,7 +10,6 @@ use petgraph::graph::{Edges, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Incoming, Outgoing};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::error::Error;
 use std::fmt::Display;
 use std::process::exit;
 
@@ -153,8 +152,8 @@ impl LogicImpl for PctlImpl {
             None => panic!("Formula must contain 'PHI' exactly once!"),
             Some(c) => c,
         };
-        let parse = PctlPestParser::parse(Rule::Main, &phi_content);
-        match parse {
+        let parse_result = PctlPestParser::parse(Rule::Main, &phi_content);
+        match parse_result {
             Ok(pairs) => {
                 let pairs_vec = pairs.collect::<Vec<_>>();
                 let pair = pairs_vec.first().unwrap();

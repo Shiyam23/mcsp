@@ -6,13 +6,14 @@ use crate::logic::ltl::mdpa::cross_mdp;
 use crate::logic::ltl::safra::determinize;
 use crate::logic::pctl::{True as Pctl_True, Until as Pctl_Until, AP as Pctl_AP};
 use crate::utils::common::Comp;
-use log::info;
+use log::{error, info};
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 use petgraph::graph::NodeIndex;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Display;
 use std::hash::Hash;
+use std::process::exit;
 
 mod ba;
 mod common;
@@ -89,12 +90,19 @@ impl LogicImpl for LtlImpl {
             None => panic!("Formula must contain 'PHI' exactly once!"),
             Some(c) => c,
         };
-        println!("{}", phi_content);
-        let pairs: Vec<_> = LtlPestParser::parse(Rule::Main, &phi_content)
-            .unwrap()
-            .collect();
-        let pair = pairs.first().unwrap();
-        Formula::Ltl(Self::parse_phi(pair))
+        let parse_result = LtlPestParser::parse(Rule::Main, &phi_content);
+        match parse_result {
+            Ok(pairs) => {
+                let pairs_vec = pairs.collect::<Vec<_>>();
+                let pair = pairs_vec.first().unwrap();
+                Formula::Ltl(Self::parse_phi(pair))
+            }
+            Err(error) => {
+                error!("PCTL Parsing error!");
+                println!("{}", error);
+                exit(0);
+            }
+        }
     }
 }
 
