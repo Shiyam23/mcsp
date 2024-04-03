@@ -15,7 +15,7 @@ and_op = _{"&"}
 or_op = _{"|"}
 not_op = _{"!"}
 prob = {"P" ~ lb ~ phi ~ separator ~ comp ~ float ~ rb}
-prob_alw = {"P" ~ lb ~ "ALW" ~ Phi ~ separator ~ comp ~ float ~ rb}
+prob_alw = {"P" ~ lb ~ "G" ~ Phi ~ separator ~ comp ~ float ~ rb}
 
 // Expressions
 Phi_and = {lb ~ Phi ~ rb ~ and_op ~ lb ~ Phi ~ rb}
