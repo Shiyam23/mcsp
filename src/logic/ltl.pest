@@ -29,7 +29,7 @@ Phi_next = {next_op ~ Phi}
 Phi_until = {lb ~ Phi ~ rb ~ until_op ~ lb ~ Phi ~ rb}
 Phi_release = {lb ~ Phi ~ rb ~ release_op ~ lb ~ Phi ~ rb}
 Phi_ev = {ev_op ~ Phi}
-Phi = _{true | false | Phi_and | Phi_or | Phi_not | Phi_until | Phi_release | Phi_next | Phi_ev | Phi_alw | "(" ~ Phi ~ ")" | ap}
+Phi = _{true | false | Phi_ev | Phi_alw | Phi_and | Phi_or | Phi_not | Phi_until | Phi_release | Phi_next | "(" ~ Phi ~ ")" | ap}
 prefix = _{"PHI" ~ "="}
 
 Main = _{SOI ~ prefix ~ Phi ~ EOI}

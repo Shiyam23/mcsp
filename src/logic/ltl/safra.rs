@@ -1,6 +1,8 @@
+use crate::logic::ltl::PhiOp;
+
 use super::{
-    ba::BA,
     common::{get_rename_map, Alphabet, SimpleTransition},
+    powerba::PowerBA,
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
@@ -13,28 +15,18 @@ type TransitionFunction = HashMap<String, HashSet<SimpleTransition>>;
 #[allow(clippy::upper_case_acronyms)]
 pub struct DRA {
     pub initial: String,
-    pub trans_f: HashMap<String, BTreeMap<DRATransition, String>>,
+    pub trans_f: HashMap<String, BTreeMap<Alphabet, String>>,
     pub acc: Vec<(HashSet<String>, HashSet<String>)>,
 }
 
 impl DRA {
-    pub fn delta(&self, state: &String, opt_symbol: Option<&String>) -> String {
+    pub fn delta(&self, state: &String, alphabet: &Alphabet) -> String {
         let transition_map = self.trans_f.get(state).unwrap();
-        match opt_symbol {
-            Some(symbol) => match transition_map.get(&DRATransition::Symbol(symbol.into())) {
-                Some(target) => target,
-                None => transition_map.get(&DRATransition::Others).unwrap(),
-            },
-            None => transition_map.get(&DRATransition::Others).unwrap(),
+        match transition_map.get(alphabet) {
+            Some(state) => state.clone(),
+            None => transition_map.get(&Alphabet::full()).unwrap().clone(),
         }
-        .into()
     }
-}
-
-#[derive(PartialOrd, Ord, Eq, PartialEq, Debug)]
-pub enum DRATransition {
-    Symbol(String),
-    Others,
 }
 
 #[derive(Clone, PartialEq)]
@@ -233,7 +225,7 @@ impl SafraTree {
     }
 }
 
-pub fn determinize(ba: BA) -> DRA {
+pub fn determinize(ba: PowerBA) -> DRA {
     let mut trans_f = HashMap::new();
     let mut pop_queue: VecDeque<SafraTree> = VecDeque::new();
     let initial_tree = SafraTree::with_root(ba.initials);
@@ -272,24 +264,16 @@ pub fn determinize(ba: BA) -> DRA {
         acc.push((non_exist, marked));
     }
 
-    let mut renamed_trans_f: HashMap<String, BTreeMap<DRATransition, String>> = HashMap::new();
+    let mut renamed_trans_f: HashMap<String, BTreeMap<Alphabet, String>> = HashMap::new();
     for (state, transitions) in &trans_f {
         let state_name: String = rename_map.get(&state).unwrap().into();
         renamed_trans_f.insert(state_name.clone(), BTreeMap::new());
         for transition in transitions {
-            let phi = transition.props.0.first();
-            let dra_transition = match phi {
-                Some(phi) => match phi {
-                    super::PhiOp::AP(ap) => DRATransition::Symbol(ap.value.clone()),
-                    _ => unreachable!(),
-                },
-                None => DRATransition::Others,
-            };
             let new_target = rename_map.get(&transition.target).unwrap().into();
             renamed_trans_f
                 .get_mut(&state_name)
                 .unwrap()
-                .insert(dra_transition, new_target);
+                .insert(transition.props.clone(), new_target);
         }
     }
 

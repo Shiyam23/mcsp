@@ -1,4 +1,5 @@
 use self::ba::to_ba;
+use self::powerba::to_powerba;
 use super::{Formula, LogicImpl, PctlInfo};
 use crate::common::rename_map;
 use crate::input_graph::{Node, MDP};
@@ -19,6 +20,7 @@ mod ba;
 mod common;
 mod gba;
 mod mdpa;
+mod powerba;
 mod safra;
 mod vwaa;
 
@@ -174,7 +176,8 @@ impl PhiOp {
         let vwaa = vwaa::to_vwaa(self.clone());
         let gba = gba::to_gba(vwaa);
         let ba = to_ba(gba);
-        determinize(ba)
+        let powerba = to_powerba(&ba);
+        determinize(powerba)
     }
 }
 

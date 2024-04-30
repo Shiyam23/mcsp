@@ -136,9 +136,16 @@ impl PetriNet {
             let pseudo_action: Node<_> = Action("".into());
             let action_index = reach_graph.add_node(pseudo_action);
             reach_graph.add_edge(pre_index, action_index, 1.0);
+
             // Add transitions
             let active_transitions = PetriNet::get_active_transitions(&marking, &self.transitions);
             let sum_fire_rates: f64 = active_transitions.iter().map(|t| t.fire_rate).sum();
+
+            // Add an action edge to the marking itself if there are not activated transitions
+            if active_transitions.is_empty() {
+                reach_graph.add_edge(action_index, pre_index, 1.0);
+            }
+
             for active_transition in active_transitions {
                 let succ_marking = PetriNet::succ_marking(&marking, active_transition);
                 let succ_index;

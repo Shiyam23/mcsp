@@ -16,7 +16,7 @@ impl Display for SimpleTransition {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, Ord, PartialOrd)]
 pub struct Alphabet(pub BTreeSet<PhiOp>);
 
 impl Display for Alphabet {

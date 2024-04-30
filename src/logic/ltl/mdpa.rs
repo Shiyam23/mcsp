@@ -1,14 +1,28 @@
-use super::safra::DRA;
+use super::{safra::DRA, PhiOp, AP};
 use crate::{
     input_graph::{Node, MDP},
+    logic::ltl::common::Alphabet,
     mcsp::PctlInfo,
     utils::common::reverse_map,
 };
 use petgraph::{algo::kosaraju_scc, graph::NodeIndex, visit::EdgeRef};
-use std::collections::{HashSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, HashSet<NodeIndex>) {
     let reversed_ap_map = reverse_map(&pctl_info.ap_map);
+    let reversed_ap_map = reversed_ap_map
+        .into_iter()
+        .map(|(k, v)| {
+            (
+                k,
+                Alphabet(
+                    v.into_iter()
+                        .map(|ap| PhiOp::AP(AP { value: ap.into() }))
+                        .collect::<BTreeSet<_>>(),
+                ),
+            )
+        })
+        .collect::<HashMap<_, _>>();
     let mdp_graph = &pctl_info.reach_graph;
     let mut cross_graph: MDP<(NodeIndex, String)> = MDP::new();
     let mut pop_queue = VecDeque::new();
@@ -28,21 +42,15 @@ pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, H
                 // For all edges between Action --> State
                 for edge in mdp_graph.edges(action) {
                     let target_state = edge.target();
-                    let target_dra_states = prop_to_state(&dra_state, opt_props, &dra);
-                    for target_dra_state in target_dra_states {
-                        let new_target_node =
-                            find_or_create_node(&mut cross_graph, target_state, &target_dra_state);
-                        if !(pop_queue.contains(&(target_state, target_dra_state.clone()))
-                            || has_edges(&(target_state, target_dra_state.clone()), &cross_graph))
-                        {
-                            pop_queue.push_back((target_state, target_dra_state));
-                        }
-                        cross_graph.add_edge(
-                            new_action_node_index,
-                            new_target_node,
-                            *edge.weight(),
-                        );
+                    let target_dra_state = prop_to_state(&dra_state, opt_props, &dra);
+                    let new_target_node =
+                        find_or_create_node(&mut cross_graph, target_state, &target_dra_state);
+                    if !(pop_queue.contains(&(target_state, target_dra_state.clone()))
+                        || has_edges(&(target_state, target_dra_state.clone()), &cross_graph))
+                    {
+                        pop_queue.push_back((target_state, target_dra_state));
                     }
+                    cross_graph.add_edge(new_action_node_index, new_target_node, *edge.weight());
                 }
             } else {
                 unreachable!();
@@ -92,19 +100,15 @@ fn aec(
     aec
 }
 
-fn prop_to_state(
-    src_state: &String,
-    opt_props: Option<&HashSet<&String>>,
-    dra: &DRA,
-) -> Vec<String> {
-    if let Some(props) = opt_props {
-        props
-            .iter()
-            .map(|prop| dra.delta(src_state, Some(prop)))
-            .collect()
-    } else {
-        vec![dra.delta(src_state, None)]
-    }
+fn prop_to_state(src_state: &String, opt_alphabet: Option<&Alphabet>, dra: &DRA) -> String {
+    let full_alph = Alphabet::full();
+    dra.delta(
+        src_state,
+        match opt_alphabet {
+            Some(alph) => alph,
+            None => &full_alph,
+        },
+    )
 }
 
 fn find_or_create_node(
