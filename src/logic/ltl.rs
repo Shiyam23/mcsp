@@ -168,8 +168,18 @@ impl PhiOp {
             &Comp::Leq,
         );
         Pctl_Until::iterate_prob(&adapter_pctl_info, s_q, &mut prob_map_max, s_1, &Comp::Geq);
-
-        print_results(prob_map_min, cross_mdp, normalization_map, prob_map_max);
+        let initial_min = prob_map_min
+            .get(renamed_initial)
+            .expect("Initial marking not found in min probabilites map!");
+        let initial_max = prob_map_max
+            .get(renamed_initial)
+            .expect("Initial marking not found in max probabilites map!");
+        let original_initial_marking =
+            match normalization_map.get(&pctl_info.initial_marking).unwrap() {
+                Node::State(k) => k,
+                Node::Action(_) => unreachable!(),
+            };
+        print_results(initial_min, initial_max, original_initial_marking);
     }
 
     fn to_dra(&self) -> safra::DRA {
@@ -181,31 +191,14 @@ impl PhiOp {
     }
 }
 
-fn print_results<K>(
-    prob_map_min: HashMap<NodeIndex, f64>,
-    cross_mdp: MDP<(NodeIndex, String)>,
-    normalization_map: BTreeMap<NodeIndex, Node<K>>,
-    prob_map_max: HashMap<NodeIndex, f64>,
-) where
+fn print_results<K>(initial_min: &f64, initial_max: &f64, initial_marking: &K)
+where
     K: std::fmt::Debug,
 {
-    for (node_index, prob) in prob_map_min {
-        let cross_node = &cross_mdp[node_index];
-        let original_ni = match cross_node {
-            Node::State((ni, _)) => ni,
-            Node::Action(_) => unreachable!(),
-        };
-        let marking = match normalization_map.get(original_ni).unwrap() {
-            Node::State(m) => m,
-            Node::Action(_) => unreachable!(),
-        };
-        info!(
-            "Marking: {:?} - Min: {} - Max: {}",
-            marking,
-            prob,
-            prob_map_max.get(&node_index).unwrap()
-        );
-    }
+    info!(
+        "Marking: {:?} - Min: {} - Max: {}",
+        initial_marking, initial_min, initial_max
+    );
 }
 
 impl Display for PhiOp {
