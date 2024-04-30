@@ -2,7 +2,7 @@ use self::ba::to_ba;
 use self::powerba::to_powerba;
 use super::{Formula, LogicImpl, PctlInfo};
 use crate::common::rename_map;
-use crate::input_graph::{Node, MDP};
+use crate::input_graph::Node;
 use crate::logic::ltl::mdpa::cross_mdp;
 use crate::logic::ltl::safra::determinize;
 use crate::logic::pctl::{True as Pctl_True, Until as Pctl_Until, AP as Pctl_AP};

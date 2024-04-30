@@ -1,5 +1,3 @@
-use crate::logic::ltl::PhiOp;
-
 use super::{
     common::{get_rename_map, Alphabet, SimpleTransition},
     powerba::PowerBA,
