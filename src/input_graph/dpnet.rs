@@ -6,7 +6,7 @@ use super::{
 use crate::input_graph;
 use crate::utils::common::powerset;
 use log::warn;
-use petgraph::{algo::dijkstra, graph::NodeIndex, prelude::DiGraph};
+use petgraph::{algo::dijkstra, graph::NodeIndex};
 use std::{
     collections::VecDeque,
     fmt::{Debug, Display},
@@ -123,7 +123,7 @@ impl DPetriNet {
     }
 
     pub fn to_mdp(&self, precision: i32) -> (MDP<Marking>, Marking) {
-        let mut reach_graph: MDP<Marking> = DiGraph::new();
+        let mut reach_graph: MDP<Marking> = MDP::new();
         let states: &Vec<Place> = &self.places;
         let initial_marking: Marking = states.iter().map(|s| s.token).collect();
         let mut upcoming_markings = VecDeque::<Marking>::new();

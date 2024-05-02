@@ -5,7 +5,7 @@ use crate::{
     mcsp::PctlInfo,
     utils::common::reverse_map,
 };
-use petgraph::{algo::kosaraju_scc, graph::NodeIndex, visit::EdgeRef};
+use petgraph::{algo::kosaraju_scc, dot, stable_graph::NodeIndex, visit::EdgeRef, Direction};
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, HashSet<NodeIndex>) {
@@ -58,46 +58,91 @@ pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, H
         }
     }
 
-    let scc = kosaraju_scc(&cross_graph);
-    let aec = aec(scc, &dra.acc, &cross_graph);
+    let aec = aec(&dra.acc, &cross_graph);
     (cross_graph, aec)
 }
 
 fn aec(
-    scc: Vec<Vec<NodeIndex>>,
     acc: &[(HashSet<String>, HashSet<String>)],
-    cross_graph: &petgraph::prelude::Graph<Node<(NodeIndex, String)>, f64>,
+    cross_graph: &MDP<(NodeIndex, String)>,
 ) -> HashSet<NodeIndex> {
+    // let scc = kosaraju_scc(&cross_graph);
     let mut aec: HashSet<NodeIndex> = HashSet::new();
-    for component in scc {
-        // Our graph nodes are divided into state nodes and action nodes. So we need to consider
-        // components containing the corresponding state and action nodes and ignore the rest
-        if component.len() < 2 {
-            continue;
-        }
-
-        for acc_pair in acc {
-            let is_not_in_l = component
-                .iter()
-                .filter_map(|ni| match cross_graph[*ni].clone() {
-                    Node::State(state) => Some(state),
-                    Node::Action(_) => None,
+    for (l, k) in acc {
+        let mut graph = cross_graph.clone();
+        for l_state in l {
+            graph.retain_nodes(|g, ni| match &g[ni] {
+                Node::State(s) => s.1 != *l_state,
+                _ => true,
+            });
+            iterative_remove(&mut graph);
+            let scc = kosaraju_scc(&graph);
+            scc.iter()
+                .filter(|c| {
+                    c.len() > 1
+                        && k.iter().any(|ke| {
+                            c.iter().any(|ce| match &graph[*ce] {
+                                Node::State(s) => s.1 == *ke,
+                                Node::Action(_) => false,
+                            })
+                        })
                 })
-                .all(|(_, q)| !acc_pair.0.contains(&q));
-            let is_in_k = component
-                .iter()
-                .filter_map(|ni| match cross_graph[*ni].clone() {
-                    Node::State(state) => Some(state),
-                    Node::Action(_) => None,
-                })
-                .any(|(_, q)| acc_pair.1.contains(&q));
-
-            if is_not_in_l && is_in_k {
-                aec.extend(component.iter().filter(|&ni| cross_graph[*ni].is_state()));
-            }
+                .flatten()
+                .for_each(|cs| {
+                    aec.insert(*cs);
+                });
         }
     }
     aec
+}
+
+fn iterative_remove(graph: &mut MDP<(NodeIndex, String)>) {
+    loop {
+        let mut remove_list: Vec<NodeIndex> = Vec::with_capacity(graph.node_count());
+        graph
+            .node_indices()
+            .filter(|ni| match &graph[*ni] {
+                Node::State(_) => false,
+                Node::Action(_) => {
+                    let incoming_edges_count =
+                        graph.edges_directed(*ni, Direction::Incoming).count();
+                    let outgoing_edges = graph.edges_directed(*ni, Direction::Outgoing);
+                    let sum_weights = outgoing_edges
+                        .clone()
+                        .map(|e| e.weight().clone())
+                        .sum::<f64>()
+                        .clone()
+                        != 1.0;
+                    return incoming_edges_count == 0
+                        || outgoing_edges.clone().count() == 0
+                        || sum_weights;
+                }
+            })
+            .for_each(|ni| remove_list.push(ni));
+        if remove_list.is_empty() {
+            break;
+        } else {
+            for ni in &remove_list {
+                let _ = graph.remove_node(*ni);
+            }
+        }
+
+        // Remove all states with
+        graph
+            .node_indices()
+            .filter(|ni| match graph[*ni] {
+                Node::Action(_) => false,
+                Node::State(_) => graph.edges_directed(*ni, Direction::Outgoing).count() == 0,
+            })
+            .for_each(|ni| remove_list.push(ni));
+        if remove_list.is_empty() {
+            break;
+        } else {
+            for ni in remove_list {
+                let _ = graph.remove_node(ni);
+            }
+        }
+    }
 }
 
 fn prop_to_state(src_state: &String, opt_alphabet: Option<&Alphabet>, dra: &DRA) -> String {
@@ -112,7 +157,7 @@ fn prop_to_state(src_state: &String, opt_alphabet: Option<&Alphabet>, dra: &DRA)
 }
 
 fn find_or_create_node(
-    cross_graph: &mut petgraph::prelude::Graph<Node<(NodeIndex, String)>, f64>,
+    cross_graph: &mut MDP<(NodeIndex, String)>,
     mdp_node: NodeIndex,
     dra_state: &String,
 ) -> NodeIndex {

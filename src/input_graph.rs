@@ -1,12 +1,12 @@
 pub mod dpnet;
 pub mod pnet;
 
-use petgraph::graph::DiGraph;
+use petgraph::stable_graph::StableDiGraph;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 
 #[allow(clippy::upper_case_acronyms)]
-pub type MDP<T> = DiGraph<Node<T>, f64>;
+pub type MDP<T> = StableDiGraph<Node<T>, f64>;
 pub type ApMap<T> = HashMap<String, HashSet<T>>;
 
 #[derive(clap::ValueEnum, Clone, Default)]

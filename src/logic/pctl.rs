@@ -6,7 +6,7 @@ use log::{error, info};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
-use petgraph::graph::{Edges, NodeIndex};
+use petgraph::stable_graph::{Edges, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Incoming, Outgoing};
 use std::collections::{BTreeMap, HashMap, HashSet};

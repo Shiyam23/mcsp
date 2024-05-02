@@ -165,9 +165,9 @@ impl PhiOp {
             s_q.clone(),
             &mut prob_map_min,
             s_1.clone(),
-            &Comp::Leq,
+            &Comp::Geq,
         );
-        Pctl_Until::iterate_prob(&adapter_pctl_info, s_q, &mut prob_map_max, s_1, &Comp::Geq);
+        Pctl_Until::iterate_prob(&adapter_pctl_info, s_q, &mut prob_map_max, s_1, &Comp::Leq);
         let initial_min = prob_map_min
             .get(renamed_initial)
             .expect("Initial marking not found in min probabilites map!");
