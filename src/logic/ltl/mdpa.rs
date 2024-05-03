@@ -5,7 +5,7 @@ use crate::{
     mcsp::PctlInfo,
     utils::common::reverse_map,
 };
-use petgraph::{algo::kosaraju_scc, dot, stable_graph::NodeIndex, visit::EdgeRef, Direction};
+use petgraph::{algo::kosaraju_scc, stable_graph::NodeIndex, visit::EdgeRef, Direction};
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, HashSet<NodeIndex>) {

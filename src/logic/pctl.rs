@@ -178,12 +178,20 @@ impl PctlFormula {
     {
         let nodes = self.0.evaluate_inner(pctl_info);
         info!("The following markings satisfy the given pctl statement:");
-        for node in nodes {
+        for node in &nodes {
             let marking = match rename_map.get(&node).unwrap() {
                 Node::State(m) => m,
                 Node::Action(_) => unreachable!(),
             };
             info!("Marking {:?}", marking);
+        }
+        if nodes.contains(&pctl_info.initial_marking) {
+            let state = rename_map.get(&pctl_info.initial_marking).unwrap();
+            if let Node::State(marking) = state {
+                println!("Initial marking: {:?} satisfies the formula. So the petri net also satifies the formula.", marking);
+            } else {
+                panic!("Initial marking was mapped to an action")
+            }
         }
     }
 }
