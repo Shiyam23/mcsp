@@ -75,23 +75,23 @@ fn aec(
                 Node::State(s) => s.1 != *l_state,
                 _ => true,
             });
-            iterative_remove(&mut graph);
-            let scc = kosaraju_scc(&graph);
-            scc.iter()
-                .filter(|c| {
-                    c.len() > 1
-                        && k.iter().any(|ke| {
-                            c.iter().any(|ce| match &graph[*ce] {
-                                Node::State(s) => s.1 == *ke,
-                                Node::Action(_) => false,
-                            })
-                        })
-                })
-                .flatten()
-                .for_each(|cs| {
-                    aec.insert(*cs);
-                });
         }
+        iterative_remove(&mut graph);
+        let scc = kosaraju_scc(&graph);
+        scc.iter()
+            .filter(|c| {
+                c.len() > 1
+                    && k.iter().any(|ke| {
+                        c.iter().any(|ce| match &graph[*ce] {
+                            Node::State(s) => s.1 == *ke,
+                            Node::Action(_) => false,
+                        })
+                    })
+            })
+            .flatten()
+            .for_each(|cs| {
+                aec.insert(*cs);
+            });
     }
     aec
 }
