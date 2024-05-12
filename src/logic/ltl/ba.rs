@@ -44,6 +44,7 @@ pub fn to_ba(gba: GBA) -> BA {
         }
     }
 
+    trans_f = prune_states(trans_f, acc_transitions.len());
     let rename_map = get_rename_map(&trans_f);
     let initials = trans_f
         .keys()
@@ -122,4 +123,43 @@ fn prune_transitions(transitions: &mut HashSet<Transition>) {
             t.props != ot.props && t.props.0.is_subset(&ot.props.0) && t.target == ot.target
         })
     })
+}
+
+fn prune_states(
+    mut trans_f: HashMap<State, HashSet<Transition>>,
+    r: usize,
+) -> HashMap<State, HashSet<Transition>> {
+    let mut temp_trans_f: HashMap<State, HashSet<Transition>> = HashMap::new();
+    let mut rename_map: HashMap<State, State> = HashMap::new();
+    for (state, transitions) in trans_f.clone() {
+        let opt_equiv_state = temp_trans_f
+            .iter()
+            .find(|(os, ot)| **ot == transitions && ((os.1 == r) == (state.1 == r)));
+        if let Some((os, _)) = opt_equiv_state {
+            rename_map.insert(state, os.clone());
+        } else {
+            temp_trans_f.insert(state, transitions);
+        }
+    }
+    trans_f.retain(|k, _| temp_trans_f.contains_key(k));
+    trans_f
+        .into_iter()
+        .map(|(k, transitions)| {
+            let mapped_transitions = transitions
+                .into_iter()
+                .map(|t| {
+                    let new_state = rename_map.get(&t.target);
+                    if let Some(new_state) = new_state {
+                        Transition {
+                            props: t.props,
+                            target: new_state.clone(),
+                        }
+                    } else {
+                        t
+                    }
+                })
+                .collect();
+            (k, mapped_transitions)
+        })
+        .collect()
 }

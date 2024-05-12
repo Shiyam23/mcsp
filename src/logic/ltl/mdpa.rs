@@ -1,4 +1,4 @@
-use super::{safra::DRA, PhiOp, AP};
+use super::{debug::print_dra, safra::DRA, PhiOp, AP};
 use crate::{
     input_graph::{Node, MDP},
     logic::ltl::common::Alphabet,
@@ -9,6 +9,7 @@ use petgraph::{algo::kosaraju_scc, stable_graph::NodeIndex, visit::EdgeRef, Dire
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 pub fn cross_mdp(dra: DRA, pctl_info: &PctlInfo) -> (MDP<(NodeIndex, String)>, HashSet<NodeIndex>) {
+    print_dra(&dra);
     let reversed_ap_map = reverse_map(&pctl_info.ap_map);
     let reversed_ap_map = reversed_ap_map
         .into_iter()

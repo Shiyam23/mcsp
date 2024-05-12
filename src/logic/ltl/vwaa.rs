@@ -29,10 +29,12 @@ impl Transition {
         let mut result_set: Transitions = HashSet::with_capacity(left_set.len() * right_set.len());
         for left_item in left_set {
             for right_item in &right_set {
-                let props: Alphabet = left_item.props.intersection(&right_item.props);
-                let target: PhiOp =
-                    And::create(left_item.target.clone(), right_item.target.clone());
-                result_set.insert(Transition { props, target });
+                let props: Option<Alphabet> = left_item.props.intersection(&right_item.props);
+                if let Some(props) = props {
+                    let target: PhiOp =
+                        And::create(left_item.target.clone(), right_item.target.clone());
+                    result_set.insert(Transition { props, target });
+                }
             }
         }
         result_set

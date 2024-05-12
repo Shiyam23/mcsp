@@ -18,6 +18,9 @@ pub fn to_powerba(ba: &BA) -> PowerBA {
     let mut phis: BTreeSet<PhiOp> = BTreeSet::new();
     for symbol in &ba.symbols {
         for phi in &symbol.0 {
+            if matches!(phi, PhiOp::Not(_)) {
+                continue;
+            }
             phis.insert(phi.clone());
         }
     }
@@ -33,7 +36,13 @@ pub fn to_powerba(ba: &BA) -> PowerBA {
         for transition in transitions {
             power_phis
                 .iter()
-                .filter(|alph| transition.props.0.iter().all(|prop| alph.0.contains(&prop)))
+                .filter(|alph| {
+                    transition.props.0.iter().all(|prop| match prop {
+                        PhiOp::Not(not) => !alph.0.contains(&PhiOp::AP(not.ap.clone())),
+                        PhiOp::AP(_) => alph.0.contains(prop),
+                        _ => unreachable!(),
+                    })
+                })
                 .for_each(|alph| {
                     new_transitions.insert(SimpleTransition {
                         props: alph.clone(),

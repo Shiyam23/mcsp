@@ -44,9 +44,17 @@ impl Alphabet {
         new_set.insert(ap);
         Alphabet(new_set)
     }
-    pub fn intersection(&self, other: &Alphabet) -> Alphabet {
+    pub fn intersection(&self, other: &Alphabet) -> Option<Alphabet> {
+        if self.0.iter().any(|s| {
+            other
+                .0
+                .iter()
+                .any(|os| *s == os.negate() || s.negate() == *os)
+        }) {
+            return None;
+        }
         let new_set = self.0.union(&other.0).cloned().collect();
-        Alphabet(new_set)
+        Some(Alphabet(new_set))
     }
 }
 
@@ -83,20 +91,10 @@ where
     T: PartialEq,
 {
     let mut conj_to_index: HashMap<&S, String> = HashMap::with_capacity(trans_f.len());
-    let mut half_simple_trans_f: HashMap<String, &T> = HashMap::with_capacity(trans_f.len());
     let mut index = 1;
-    for (conj, transitions) in trans_f {
-        let redundant_state = half_simple_trans_f
-            .iter()
-            .find(|(_, delta)| transitions == **delta)
-            .map(|(state, _)| state);
-        if let Some(state) = redundant_state {
-            conj_to_index.insert(conj, state.to_string());
-        } else {
-            half_simple_trans_f.insert(index.to_string(), transitions);
-            conj_to_index.insert(conj, index.to_string());
-            index += 1;
-        }
+    for (conj, _) in trans_f {
+        conj_to_index.insert(conj, index.to_string());
+        index += 1;
     }
     conj_to_index
 }

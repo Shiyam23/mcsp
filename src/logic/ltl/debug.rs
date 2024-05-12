@@ -1,12 +1,14 @@
-use super::{ba::BA, gba::GBA, safra::DRA, vwaa::VWAA};
+use super::{ba::BA, gba::GBA, powerba::PowerBA, safra::DRA, vwaa::VWAA};
 
-pub fn print_gba(gba: GBA) {
-    let renamed_initial = gba.initial;
-    let renamed_accept_t = gba.acc_transitions;
-    let renamed_trans_f = gba.trans_f;
+#[allow(dead_code)]
+pub fn print_gba(gba: &GBA) {
+    let renamed_initial = &gba.initial;
+    let renamed_accept_t = &gba.acc_transitions;
+    let renamed_trans_f = &gba.trans_f;
 
     println!("gba:");
     println!("Initials: {:?}", renamed_initial);
+    println!("Transitions:");
     for (s, t) in renamed_trans_f {
         for transition in t {
             println!("{} -> {} -> {}", s, transition.props, transition.target);
@@ -15,6 +17,7 @@ pub fn print_gba(gba: GBA) {
     if renamed_accept_t.is_empty() {
         println!("No acc transitions!");
     }
+    println!("Acc_t:");
     for (_, transitions) in renamed_accept_t {
         for (conj, transition) in transitions {
             println!("{} -> {}", conj, transition);
@@ -23,6 +26,7 @@ pub fn print_gba(gba: GBA) {
     }
 }
 
+#[allow(dead_code)]
 pub fn print_ba(ba: &BA) {
     println!("ba:");
     println!("Initials: {:?}", ba.initials);
@@ -35,6 +39,7 @@ pub fn print_ba(ba: &BA) {
     println!("-------------------------------");
 }
 
+#[allow(dead_code)]
 pub fn print_dra(dra: &DRA) {
     println!("Initial: {}", dra.initial);
     println!("TransitionFunction:");
@@ -49,6 +54,7 @@ pub fn print_dra(dra: &DRA) {
     }
 }
 
+#[allow(dead_code)]
 pub fn print_vwaa(vwaa: &VWAA) {
     println!("Vwaa:");
     println!("initial: {:?}", vwaa.initial);
@@ -59,4 +65,18 @@ pub fn print_vwaa(vwaa: &VWAA) {
     }
     println!("Finals: {:?}", vwaa.final_states);
     println!("-------------------------");
+}
+
+#[allow(dead_code)]
+pub fn print_powerba(power_ba: &PowerBA) {
+    println!("Initials: {:?}", power_ba.initials);
+    println!("-------------------");
+    println!("Trans_f:");
+    for (state, transitions) in &power_ba.transitions {
+        for transition in transitions {
+            println!("{} -> {} -> {}", state, transition.props, transition.target);
+        }
+    }
+    println!("Finals: {:?}", power_ba.finals);
+    println!("-------------------------------");
 }

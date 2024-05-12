@@ -79,6 +79,7 @@ pub fn to_gba(vwaa: VWAA) -> GBA {
     }
 
     prune_transitions(&mut accept_t, &mut trans_f);
+    (trans_f, accept_t) = prune_states(trans_f, accept_t);
     let rename_map = get_rename_map(&trans_f);
     let renamed_trans_f = rename_trans_f(&trans_f, &rename_map);
     let renamed_initial = rename_initial(vwaa.initial, &rename_map);
@@ -160,6 +161,68 @@ fn prune_transitions(
             !delete
         });
     }
+}
+
+fn prune_states(
+    trans_f: HashMap<Conjuction, HashSet<ConjTransition>>,
+    accept_t: HashMap<PhiOp, HashSet<(Conjuction, ConjTransition)>>,
+) -> (
+    HashMap<Conjuction, HashSet<ConjTransition>>,
+    HashMap<PhiOp, HashSet<(Conjuction, ConjTransition)>>,
+) {
+    let mut temp_trans_f: HashMap<Conjuction, HashSet<ConjTransition>> = HashMap::new();
+    let mut rename_map: HashMap<Conjuction, Conjuction> = HashMap::new();
+    for (state, transitions) in trans_f.clone() {
+        let opt_equiv_state = temp_trans_f.iter().find(|(_, ot)| **ot == transitions);
+        if let Some((os, _)) = opt_equiv_state {
+            rename_map.insert(state, os.clone());
+        } else {
+            temp_trans_f.insert(state, transitions);
+        }
+    }
+    let new_trans_f = trans_f
+        .into_iter()
+        .filter(|(k, _)| !rename_map.contains_key(k))
+        .map(|(k, transitions)| {
+            let mapped_transitions = transitions
+                .into_iter()
+                .map(|t| {
+                    let new_state = rename_map.get(&t.target);
+                    if let Some(new_state) = new_state {
+                        ConjTransition {
+                            props: t.props,
+                            target: new_state.clone(),
+                        }
+                    } else {
+                        t
+                    }
+                })
+                .collect();
+            (k, mapped_transitions)
+        })
+        .collect();
+
+    let new_accept_t = accept_t
+        .into_iter()
+        .map(|(phi, transitions)| {
+            let new_transitions = transitions
+                .into_iter()
+                .filter(|(s, _)| !rename_map.contains_key(s))
+                .map(|(s, t)| {
+                    let new_transition = match rename_map.get(&t.target) {
+                        Some(state) => ConjTransition {
+                            props: t.props,
+                            target: state.clone(),
+                        },
+                        None => t,
+                    };
+                    (s, new_transition)
+                })
+                .collect();
+            (phi, new_transitions)
+        })
+        .collect();
+    (new_trans_f, new_accept_t)
 }
 
 fn delta2(conj: &Conjuction) -> Transitions {

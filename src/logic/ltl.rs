@@ -18,6 +18,7 @@ use std::process::exit;
 
 mod ba;
 mod common;
+mod debug;
 mod gba;
 mod mdpa;
 mod powerba;
