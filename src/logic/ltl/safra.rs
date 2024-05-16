@@ -146,7 +146,7 @@ impl SafraNode {
             let target = trans_f.get(label).unwrap();
             target
                 .iter()
-                .filter(|t| t.props == *symbol || t.props.0.is_empty())
+                .filter(|t| t.props == *symbol)
                 .map(|t| t.target.clone())
                 .for_each(|l| {
                     new_labels.insert(l);

@@ -55,6 +55,23 @@ pub fn print_dra(dra: &DRA) {
 }
 
 #[allow(dead_code)]
+pub fn dra_to_dot(dra: &DRA) {
+    println!("digraph {{");
+    for state in dra.trans_f.keys() {
+        println!("{}", state);
+    }
+    for (state, transitions) in &dra.trans_f {
+        for transition in transitions {
+            println!(
+                "{} -> {} [label = \"{}\"]",
+                state, transition.1, transition.0
+            );
+        }
+    }
+    println!("}}")
+}
+
+#[allow(dead_code)]
 pub fn print_vwaa(vwaa: &VWAA) {
     println!("Vwaa:");
     println!("initial: {:?}", vwaa.initial);
