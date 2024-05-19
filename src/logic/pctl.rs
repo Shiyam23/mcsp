@@ -2,7 +2,7 @@ use crate::input_graph::{Node, MDP};
 use crate::logic::{Formula, LogicImpl};
 use crate::mcsp::PctlInfo;
 use crate::utils::common::Comp;
-use log::{error, info};
+use log::error;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
@@ -172,27 +172,27 @@ impl LogicImpl for PctlImpl {
 pub struct PctlFormula(Box<dyn StatePhi>);
 
 impl PctlFormula {
-    pub fn evaluate<K>(&self, pctl_info: &PctlInfo, rename_map: BTreeMap<NodeIndex, Node<K>>)
+    pub fn evaluate<K>(&self, pctl_info: &PctlInfo, _rename_map: BTreeMap<NodeIndex, Node<K>>)
     where
         K: std::fmt::Debug,
     {
-        let nodes = self.0.evaluate_inner(pctl_info);
-        info!("The following markings satisfy the given pctl statement:");
-        for node in &nodes {
-            let marking = match rename_map.get(&node).unwrap() {
-                Node::State(m) => m,
-                Node::Action(_) => unreachable!(),
-            };
-            info!("Marking {:?}", marking);
-        }
-        if nodes.contains(&pctl_info.initial_marking) {
-            let state = rename_map.get(&pctl_info.initial_marking).unwrap();
-            if let Node::State(marking) = state {
-                println!("Initial marking: {:?} satisfies the formula. So the petri net also satifies the formula.", marking);
-            } else {
-                panic!("Initial marking was mapped to an action")
-            }
-        }
+        self.0.evaluate_inner(pctl_info);
+        // info!("The following markings satisfy the given pctl statement:");
+        // for node in &nodes {
+        //     let marking = match rename_map.get(&node).unwrap() {
+        //         Node::State(m) => m,
+        //         Node::Action(_) => unreachable!(),
+        //     };
+        //     info!("Marking {:?}", marking);
+        // }
+        // if nodes.contains(&pctl_info.initial_marking) {
+        //     let state = rename_map.get(&pctl_info.initial_marking).unwrap();
+        //     if let Node::State(marking) = state {
+        //         println!("Initial marking: {:?} satisfies the formula. So the petri net also satifies the formula.", marking);
+        //     } else {
+        //         panic!("Initial marking was mapped to an action")
+        //     }
+        // }
     }
 }
 

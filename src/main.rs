@@ -3,21 +3,22 @@ mod input_graph;
 mod logic;
 mod mcsp;
 mod parser;
+mod test;
 mod utils;
 
-use crate::input_graph::dpnet::DPetriNet;
 use crate::input_graph::pnet::PetriNet;
 use crate::input_graph::InputGraphType;
 use crate::mcsp::ModelCheck;
 use crate::parser::dpn_parser::DPetriNetParser;
 use crate::parser::petri_net_parser::PetriNetParser;
+use crate::{input_graph::dpnet::DPetriNet, test::PN1};
 use clap::Parser;
-use log::info;
+use utils::file::TimeMeasurements;
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 pub struct Args {
     /// Path of the input file
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "")]
     input_file: String,
 
     /// Max error used by the value iteration algorithm to compute the
@@ -44,14 +45,26 @@ pub enum LogicType {
     LTL,
 }
 
+#[allow(unreachable_code, unused_variables)]
 fn main() {
     init();
-    let args = Args::parse();
-    info!("Starting MCSP...");
-    match args.graph_type {
-        InputGraphType::Petri => ModelCheck::<PetriNet, PetriNetParser>::start(args),
-        InputGraphType::DecisionPetri => ModelCheck::<DPetriNet, DPetriNetParser>::start(args),
-    };
+    let mut args = Args::parse();
+    args.logic_type = LogicType::Pctl;
+    args.graph_type = InputGraphType::DecisionPetri;
+    let mut time_m = TimeMeasurements::new();
+    for i in 1..=50 {
+        println!("{}", i);
+        let input = PN1::get_input(i);
+        match args.graph_type {
+            InputGraphType::Petri => {
+                ModelCheck::<PetriNet, PetriNetParser>::start(args.clone(), input, &mut time_m)
+            }
+            InputGraphType::DecisionPetri => {
+                ModelCheck::<DPetriNet, DPetriNetParser>::start(args.clone(), input, &mut time_m)
+            }
+        };
+    }
+    time_m.to_file("/Users/shiyam/Desktop/ma/ch_op/graph_conv_dpn1.txt", 1);
 }
 
 fn init() {

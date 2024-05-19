@@ -7,7 +7,7 @@ use crate::logic::ltl::mdpa::cross_mdp;
 use crate::logic::ltl::safra::determinize;
 use crate::logic::pctl::{True as Pctl_True, Until as Pctl_Until, AP as Pctl_AP};
 use crate::utils::common::Comp;
-use log::{error, info};
+use log::error;
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
 use petgraph::graph::NodeIndex;
@@ -101,7 +101,7 @@ impl LogicImpl for LtlImpl {
                 Formula::Ltl(Self::parse_phi(pair))
             }
             Err(error) => {
-                error!("PCTL Parsing error!");
+                error!("LTL Parsing error!");
                 println!("{}", error);
                 exit(0);
             }
@@ -192,14 +192,15 @@ impl PhiOp {
     }
 }
 
+#[allow(unused_variables)]
 fn print_results<K>(initial_min: &f64, initial_max: &f64, initial_marking: &K)
 where
     K: std::fmt::Debug,
 {
-    info!(
-        "Marking: {:?} - Min: {} - Max: {}",
-        initial_marking, initial_min, initial_max
-    );
+    // info!(
+    //     "Marking: {:?} - Min: {} - Max: {}",
+    //     initial_marking, initial_min, initial_max
+    // );
 }
 
 impl Display for PhiOp {

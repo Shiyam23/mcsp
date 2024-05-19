@@ -3,7 +3,7 @@ use crate::input_graph::Node::{Action, State};
 use crate::input_graph::{ApMap, InputGraph, Node, ParseImpl, MDP};
 use crate::logic::{parse_formula, Formula};
 use crate::utils::common::reverse_btree_map;
-use crate::utils::file::read_file;
+use crate::utils::file::TimeMeasurements;
 use crate::Args;
 use log::info;
 use petgraph::dot::Dot;
@@ -11,6 +11,7 @@ use petgraph::graph::NodeIndex;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::time::Instant;
 
 pub struct ModelCheckInfo<'a, T> {
     pub initial_marking: T,
@@ -38,15 +39,19 @@ where
     T: InputGraph,
     P: ParseImpl<T>,
 {
-    pub fn start(args: Args) {
-        info!("Parsing input petri net");
-        let content = read_file(&args.input_file);
+    #[allow(unreachable_code, unused_mut, unused_variables)]
+    pub fn start(args: Args, content: String, time_m: &mut TimeMeasurements) {
+        // let start_parse = Instant::now();
         let mut input_graph: Box<T> = P::parse(&content);
-        info!("Petri net parsed successfully");
-        info!("Validating petri net...");
+        // let duration_parse = start_parse.elapsed();
+        // time_m.add_time(duration_parse.as_micros());
+
+        let start_conv = Instant::now();
         let (reach_graph, initial_marking) = input_graph.to_mdp(args.precision_digits);
         input_graph.validate_graph(&reach_graph);
-        info!("Petri net has been validated successfully");
+        let duration_conv = start_conv.elapsed();
+        time_m.add_time(duration_conv.as_micros());
+        return;
 
         // Show graph if user requests
         if args.show_graph {
@@ -54,9 +59,12 @@ where
             println!("{:?}", Dot::new(&reach_graph));
         }
 
-        info!("Parsing formula...");
+        // let start_fparse = Instant::now();
         let formula = parse_formula(args.logic_type, &content);
-        info!("Formula parsed successfully");
+        // let duration_fparse = start_fparse.elapsed();
+        // time_m.add_time(duration_fparse.as_micros());
+
+        let start_ev = Instant::now();
         let mc: ModelCheckInfo<T::S> = ModelCheckInfo {
             initial_marking,
             reach_graph,
@@ -65,9 +73,11 @@ where
             max_error: args.max_error,
         };
         Self::evaluate_pctl(mc);
+        let duration_ev = start_ev.elapsed();
+        time_m.add_time(duration_ev.as_micros());
     }
 
-    pub fn evaluate_pctl<K>(mc_info: ModelCheckInfo<K>)
+    fn evaluate_pctl<K>(mc_info: ModelCheckInfo<K>)
     where
         K: Debug + PartialEq + Clone + Ord,
     {
@@ -100,7 +110,6 @@ where
             max_error: mc_info.max_error,
         };
 
-        info!("Evaluating formula...");
         mc_info
             .formula
             .evaluate(&pctl_info, reverse_btree_map(rename_map));
