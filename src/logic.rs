@@ -1,15 +1,12 @@
-use std::collections::BTreeMap;
-
-use petgraph::graph::NodeIndex;
-
+use self::ltl::PhiOp;
+use self::pctl::PctlFormula;
 use crate::input_graph::Node;
 use crate::logic::ltl::LtlImpl;
 use crate::logic::pctl::PctlImpl;
 use crate::mcsp::PctlInfo;
 use crate::LogicType;
-
-use self::ltl::PhiOp;
-use self::pctl::PctlFormula;
+use petgraph::graph::NodeIndex;
+use std::collections::BTreeMap;
 
 pub mod ltl;
 pub mod pctl;

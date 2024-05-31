@@ -128,7 +128,9 @@ impl PhiOp {
         K: std::fmt::Debug,
     {
         let dra = self.to_dra();
+
         let dra_initial = dra.initial.clone();
+
         let (cross_mdp, aec) = cross_mdp(dra, pctl_info);
         let rename_map = rename_map(&cross_mdp);
 
@@ -169,6 +171,7 @@ impl PhiOp {
             &Comp::Geq,
         );
         Pctl_Until::iterate_prob(&adapter_pctl_info, s_q, &mut prob_map_max, s_1, &Comp::Leq);
+
         let initial_min = prob_map_min
             .get(renamed_initial)
             .expect("Initial marking not found in min probabilites map!");
@@ -184,11 +187,31 @@ impl PhiOp {
     }
 
     fn to_dra(&self) -> safra::DRA {
+        // let vwaa_start = Instant::now();
         let vwaa = vwaa::to_vwaa(self.clone());
+        // let vwaa_time = vwaa_start.elapsed();
+        // time_m.add_time(0, vwaa_time.as_micros());
+
+        // let gba_start = Instant::now();
         let gba = gba::to_gba(vwaa);
+        // let gba_time = gba_start.elapsed();
+        // time_m.add_time(1, gba_time.as_micros());
+
+        // let ba_start = Instant::now();
         let ba = to_ba(gba);
+        // let ba_time = ba_start.elapsed();
+        // time_m.add_time(2, ba_time.as_micros());
+
+        // let pba_start = Instant::now();
         let powerba = to_powerba(&ba);
-        determinize(powerba)
+        // let pba_time = pba_start.elapsed();
+        // time_m.add_time(3, pba_time.as_micros());
+
+        // let dra_start = Instant::now();
+        let dra = determinize(powerba);
+        // let dra_time = dra_start.elapsed();
+        // time_m.add_time(4, dra_time.as_micros());
+        return dra;
     }
 }
 

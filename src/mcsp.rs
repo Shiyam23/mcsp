@@ -41,17 +41,12 @@ where
 {
     #[allow(unreachable_code, unused_mut, unused_variables)]
     pub fn start(args: Args, content: String, time_m: &mut TimeMeasurements) {
-        // let start_parse = Instant::now();
+        let start_parse = Instant::now();
         let mut input_graph: Box<T> = P::parse(&content);
-        // let duration_parse = start_parse.elapsed();
-        // time_m.add_time(duration_parse.as_micros());
+        let duration_parse = start_parse.elapsed();
 
-        let start_conv = Instant::now();
         let (reach_graph, initial_marking) = input_graph.to_mdp(args.precision_digits);
         input_graph.validate_graph(&reach_graph);
-        let duration_conv = start_conv.elapsed();
-        time_m.add_time(duration_conv.as_micros());
-        return;
 
         // Show graph if user requests
         if args.show_graph {
@@ -59,12 +54,11 @@ where
             println!("{:?}", Dot::new(&reach_graph));
         }
 
-        // let start_fparse = Instant::now();
+        let start_fparse = Instant::now();
         let formula = parse_formula(args.logic_type, &content);
-        // let duration_fparse = start_fparse.elapsed();
-        // time_m.add_time(duration_fparse.as_micros());
-
-        let start_ev = Instant::now();
+        let duration_fparse = start_fparse.elapsed();
+        time_m.add_time(0, duration_fparse.as_micros());
+        println!("Parsing finished");
         let mc: ModelCheckInfo<T::S> = ModelCheckInfo {
             initial_marking,
             reach_graph,
@@ -72,9 +66,12 @@ where
             formula,
             max_error: args.max_error,
         };
+
+        let start_ev = Instant::now();
         Self::evaluate_pctl(mc);
         let duration_ev = start_ev.elapsed();
-        time_m.add_time(duration_ev.as_micros());
+        time_m.add_time(1, duration_ev.as_micros());
+        println!("Evaluation finished");
     }
 
     fn evaluate_pctl<K>(mc_info: ModelCheckInfo<K>)

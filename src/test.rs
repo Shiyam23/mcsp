@@ -1,3 +1,10 @@
+use std::{
+    collections::{HashSet, VecDeque},
+    usize,
+};
+
+use rand_distr::num_traits::ToPrimitive;
+
 pub struct Transition {
     pub name: String,
     pub pre: Vec<String>,
@@ -100,6 +107,7 @@ pub fn format_tuple(m: Vec<usize>) -> String {
 
 pub struct PN1;
 
+#[allow(dead_code)]
 impl PN1 {
     pub fn get_input(n: usize) -> String {
         assert!(n > 0, "n can not be zero");
@@ -114,7 +122,7 @@ impl PN1 {
     }
 
     fn get_formula(_: usize) -> String {
-        "PHI = P((phione) U (phitwo), >= 0.5)".into()
+        "PHI = (phione) U (phitwo)".into()
     }
 
     fn get_pn(n: usize) -> String {
@@ -165,8 +173,7 @@ impl PN1 {
     }
 
     fn get_lambdas(n: usize) -> String {
-        let mut lambdas: Vec<usize> = vec![0; 2 * n - 1];
-        lambdas[0] = 1;
+        let lambdas: Vec<usize> = vec![1; 2 * n - 1];
         format_lambdas(lambdas)
     }
 
@@ -220,3 +227,211 @@ impl PN1 {
 }
 
 pub struct PN2;
+
+#[allow(dead_code)]
+impl PN2 {
+    pub fn get_input(n: usize, is_d: bool) -> String {
+        let mut pn = Self::get_pn(n);
+        pn += Self::get_transitions(n).as_str();
+        if is_d {
+            pn += Self::get_controllables(n).as_str();
+        }
+        pn += Self::get_initial(n).as_str();
+        pn += Self::get_lambdas(n).as_str();
+        pn += Self::get_aps(n).as_str();
+        pn += Self::get_formula(n).as_str();
+        pn
+    }
+
+    fn get_formula(_: usize) -> String {
+        "PHI = (phione) U (phitwo)".into()
+    }
+
+    fn get_pn(n: usize) -> String {
+        let power: usize = Self::get_power(n);
+        format_places(power.to_usize().unwrap())
+    }
+
+    fn get_power(n: usize) -> usize {
+        2_usize.pow(n.to_u32().unwrap()) - 1
+    }
+
+    fn get_transitions(n: usize) -> String {
+        let amount = Self::get_power(n - 1);
+        let mut transitions: Vec<Transition> = Vec::with_capacity(amount);
+
+        for i in 1..=amount {
+            let k = 2 * i;
+            transitions.push(Transition {
+                name: format!("t{}", i),
+                pre: vec![format!("{}", i)],
+                pre_markings: vec![1],
+                post: vec![format!("{}", k), format!("{}", k + 1)],
+                post_markings: vec![1, 1],
+            });
+        }
+        format_transitions(transitions)
+    }
+
+    fn get_controllables(n: usize) -> String {
+        let power: usize = Self::get_power(n - 1);
+        format_controllables(power)
+    }
+
+    fn get_initial(n: usize) -> String {
+        let max_places = Self::get_power(n);
+        let mut initials: Vec<usize> = vec![0; max_places];
+        initials[0] = 1;
+        format_initial(initials)
+    }
+
+    fn get_lambdas(n: usize) -> String {
+        let lambdas: Vec<usize> = vec![1; Self::get_power(n - 1)];
+        format_lambdas(lambdas)
+    }
+
+    fn get_aps(n: usize) -> String {
+        let max_places = Self::get_power(n);
+        let mut aps: Vec<AP> = Vec::new();
+        let mut phi_one_markings: HashSet<Vec<usize>> = HashSet::new();
+        let mut phi_one_queue: VecDeque<Vec<usize>> = VecDeque::new();
+        let mut init = vec![0; Self::get_power(n)];
+        init[0] = 1;
+        phi_one_queue.push_back(init);
+        while let Some(marking) = phi_one_queue.pop_front() {
+            let one_indices: Vec<usize> = marking
+                .iter()
+                .enumerate()
+                .filter(|(_, m)| **m == 1)
+                .map(|(i, _)| i)
+                .collect();
+
+            for one_index in one_indices {
+                let k = 2 * (one_index + 1);
+                if k > max_places {
+                    continue;
+                }
+                let mut marking_cpy = marking.clone();
+                marking_cpy[one_index] = 0;
+                marking_cpy[k] = 1;
+                marking_cpy[k - 1] = 1;
+                phi_one_queue.push_back(marking_cpy);
+            }
+            phi_one_markings.insert(marking);
+        }
+
+        aps.push(AP {
+            name: "phione".to_string(),
+            markings: phi_one_markings.into_iter().collect::<Vec<_>>(),
+        });
+
+        let mut end_marking = vec![0; max_places];
+        let last_layer_start = Self::get_power(n - 1) + 1;
+        for i in last_layer_start..=max_places {
+            end_marking[i - 1] = 1;
+        }
+
+        aps.push(AP {
+            name: "phitwo".to_string(),
+            markings: vec![end_marking],
+        });
+        format_ap(aps)
+    }
+}
+
+pub struct PN3;
+
+#[allow(dead_code)]
+impl PN3 {
+    pub fn get_input(n: usize, is_d: bool) -> String {
+        assert!(n > 0, "n can not be zero");
+        let mut pn = Self::get_pn(n);
+        pn += Self::get_transitions(n).as_str();
+        if is_d {
+            pn += Self::get_controllables(n).as_str();
+        }
+        pn += Self::get_initial(n).as_str();
+        pn += Self::get_lambdas(n).as_str();
+        pn += Self::get_aps(n).as_str();
+        pn += Self::get_formula(n).as_str();
+        pn
+    }
+
+    fn get_formula(n: usize) -> String {
+        let prefix = "PHI = ".to_string();
+        let mut tmp = format!("P(X{}, >=0.0)", n).to_string();
+        for i in (1..n).rev() {
+            tmp = format!("P(X(({}) & ({})), >=0.0)", i, tmp);
+        }
+        prefix + &tmp
+    }
+
+    fn get_pn(n: usize) -> String {
+        format_places(2 * n + 1)
+    }
+
+    fn get_transitions(n: usize) -> String {
+        let mut transitions: Vec<Transition> = Vec::with_capacity(2 * n - 1);
+
+        transitions.push(Transition {
+            name: format!("t1"),
+            pre: vec!["1".into()],
+            pre_markings: vec![1],
+            post: vec!["2".into(), "3".into()],
+            post_markings: vec![1, 1],
+        });
+        for i in 1..=n - 1 {
+            let k = 2 * i;
+            transitions.push(Transition {
+                name: format!("t{}", k),
+                pre: vec![format!("{}", k)],
+                pre_markings: vec![1],
+                post: vec![format!("{}", k + 2)],
+                post_markings: vec![1],
+            });
+            transitions.push(Transition {
+                name: format!("t{}", k + 1),
+                pre: vec![format!("{}", k + 1)],
+                pre_markings: vec![1],
+                post: vec![format!("{}", k + 3)],
+                post_markings: vec![1],
+            });
+        }
+        format_transitions(transitions)
+    }
+
+    fn get_controllables(n: usize) -> String {
+        format_controllables(2 * n - 1)
+    }
+
+    fn get_initial(n: usize) -> String {
+        let mut initials: Vec<usize> = Vec::with_capacity(2 * n + 1);
+        initials.push(1);
+        for _ in 0..2 * n {
+            initials.push(0);
+        }
+        format_initial(initials)
+    }
+
+    fn get_lambdas(n: usize) -> String {
+        let lambdas: Vec<usize> = vec![1; 2 * n - 1];
+        format_lambdas(lambdas)
+    }
+
+    fn get_aps(n: usize) -> String {
+        let mut aps: Vec<AP> = Vec::new();
+        for i in 0..n {
+            let mut layer_markings: Vec<Vec<usize>> = Vec::new();
+            let mut marking = vec![0; 2 * n + 1];
+            marking[1] = 1;
+            marking[2] = 1;
+            marking.rotate_right(2 * i);
+            layer_markings.push(marking);
+            aps.push(AP {
+                name: (i + 1).to_string(),
+                markings: layer_markings,
+            });
+        }
+        format_ap(aps)
+    }
+}

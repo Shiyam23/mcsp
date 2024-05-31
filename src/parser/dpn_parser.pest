@@ -8,7 +8,7 @@ lc = _{"{"}
 rb = _{")"}
 rc = _{"}"}
 separator = _{","}
-ap = @{ASCII_ALPHA+}
+ap = @{ASCII_ALPHANUMERIC+}
 arrow = _{"->"}
 
 // General elements

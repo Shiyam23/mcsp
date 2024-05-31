@@ -6,12 +6,13 @@ mod parser;
 mod test;
 mod utils;
 
+use crate::input_graph::dpnet::DPetriNet;
 use crate::input_graph::pnet::PetriNet;
 use crate::input_graph::InputGraphType;
 use crate::mcsp::ModelCheck;
 use crate::parser::dpn_parser::DPetriNetParser;
 use crate::parser::petri_net_parser::PetriNetParser;
-use crate::{input_graph::dpnet::DPetriNet, test::PN1};
+use crate::test::PN3;
 use clap::Parser;
 use utils::file::TimeMeasurements;
 
@@ -50,11 +51,11 @@ fn main() {
     init();
     let mut args = Args::parse();
     args.logic_type = LogicType::Pctl;
-    args.graph_type = InputGraphType::DecisionPetri;
+    args.graph_type = InputGraphType::Petri;
     let mut time_m = TimeMeasurements::new();
-    for i in 1..=50 {
+    for i in 1..=17 {
         println!("{}", i);
-        let input = PN1::get_input(i);
+        let input = PN3::get_input(i, matches!(args.graph_type, InputGraphType::DecisionPetri));
         match args.graph_type {
             InputGraphType::Petri => {
                 ModelCheck::<PetriNet, PetriNetParser>::start(args.clone(), input, &mut time_m)
@@ -64,7 +65,7 @@ fn main() {
             }
         };
     }
-    time_m.to_file("/Users/shiyam/Desktop/ma/ch_op/graph_conv_dpn1.txt", 1);
+    time_m.to_file("/Users/shiyam/Desktop/ma/ch_op/data/pn3/", "pn3", 1);
 }
 
 fn init() {
